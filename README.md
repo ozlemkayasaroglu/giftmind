@@ -1,73 +1,141 @@
-# React + TypeScript + Vite
+# GiftMind - AI-Powered Gift Recommendation Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+GiftMind is a modern web application that helps users discover perfect gifts using AI-powered persona-based recommendations. Built with React, TypeScript, Vite, and Supabase.
 
-Currently, two official plugins are available:
+## ✨ Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 🔐 **Secure Authentication** - User registration and login with Supabase Auth
+- 👤 **Gift Personas** - Create and manage different gift recipient personas
+- 🎁 **Smart Recommendations** - AI-powered gift suggestions based on personas
+- 📱 **Responsive Design** - Beautiful UI with Tailwind CSS
+- 🛡️ **Protected Routes** - Secure access to user-specific content
 
-## React Compiler
+## 🚀 Quick Start
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Prerequisites
 
-## Expanding the ESLint configuration
+- Node.js 18+ 
+- npm or yarn
+- Supabase account (free tier available)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Installation
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+1. **Clone the repository**
+```bash
+git clone https://github.com/ozlemkayasaroglu/giftmind.git
+cd giftmind-fe
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+2. **Install dependencies**
+```bash
+npm install
 ```
+
+3. **Set up environment variables**
+```bash
+cp .env.example .env
+```
+
+4. **Configure Supabase**
+   - Create a new project at [supabase.com](https://supabase.com)
+   - Copy your project URL and anon key to `.env`:
+   ```
+   VITE_SUPABASE_URL=your_supabase_project_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+5. **Start development server**
+```bash
+npm run dev
+```
+
+## 🧪 Testing
+
+### Test User Credentials
+
+For testing the authentication flow, you can register with:
+- **Email**: test@giftmind.com
+- **Password**: TestUser123!
+
+### Test Routes
+
+- `/login` - User authentication
+- `/register` - New user registration  
+- `/dashboard` - Main application (protected)
+- `/persona/:id` - Persona details (protected)
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React 18 + TypeScript
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS v4
+- **Routing**: React Router DOM
+- **Authentication**: Supabase Auth
+- **Database**: Supabase (PostgreSQL)
+- **Deployment**: Ready for Vercel/Netlify
+
+## 📁 Project Structure
+
+```
+src/
+├── components/     # Reusable UI components
+├── pages/         # Route components
+├── context/       # React Context (Auth)
+├── lib/           # Utility functions (Supabase client)
+├── hooks/         # Custom React hooks
+└── assets/        # Static assets
+```
+
+## 🔧 Development
+
+## 🔧 Development
+
+### Available Scripts
+
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run preview      # Preview production build
+npm run lint         # Run ESLint
+```
+
+### Code Quality
+
+This project uses:
+- **ESLint** for code linting
+- **TypeScript** for type safety
+- **Prettier** (recommended) for code formatting
+
+## 🔒 Security
+
+- Environment variables are safely handled with Vite
+- Supabase anon key is designed for frontend use
+- Row Level Security (RLS) should be enabled in Supabase
+- See `SECURITY.md` for detailed security guidelines
+
+## 🚀 Deployment
+
+1. **Build the project**
+```bash
+npm run build
+```
+
+2. **Deploy to Vercel/Netlify**
+   - Connect your GitHub repository
+   - Add environment variables
+   - Deploy automatically on push
+
+## 📝 License
+
+MIT License - see LICENSE file for details
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+---
+
+**Happy coding! 🎉**
