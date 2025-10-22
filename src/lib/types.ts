@@ -13,6 +13,7 @@ export interface Persona {
   user_id: string;
   name: string;
   description: string;
+  birth_date?: string; // Birth date field
   age_range: string;
   budget_min: number;
   budget_max: number;
@@ -27,6 +28,7 @@ export interface Persona {
 export interface CreatePersonaRequest {
   name: string;
   description: string;
+  birth_date?: string; // Birth date field
   age_range: string;
   budget_min: number;
   budget_max: number;

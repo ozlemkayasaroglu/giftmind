@@ -1,5 +1,29 @@
 // Railway Authentication Service
-import { railwayApi, type ApiResponse, type User } from './railwayApi';
+import railwayApi from './railwayApi';
+
+// User interface (matching railwayApi User interface)
+export interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// API Response interface
+interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  user?: User;
+  token?: string;
+  session?: {
+    accessToken?: string;
+  };
+  message?: string;
+  error?: string;
+}
 
 // User session interface compatible with existing code
 export interface RailwaySession {
@@ -37,7 +61,7 @@ let currentSession: RailwaySession | null = null;
 let authCallbacks: Set<AuthChangeCallback> = new Set();
 
 // Helper to create session from API response
-const createSession = (apiResponse: ApiResponse<User>): RailwaySession | null => {
+const createSession = (apiResponse: ApiResponse<{ user: User; token: string }>): RailwaySession | null => {
   if (apiResponse.success && apiResponse.token && apiResponse.user) {
     return {
       access_token: apiResponse.token,
@@ -61,7 +85,7 @@ const notifyAuthChange = (event: AuthEvent, session: RailwaySession | null) => {
 
 // Helper to initialize session from stored token
 const initializeSession = async (): Promise<RailwaySession | null> => {
-  const token = localStorage.getItem('authToken');
+  const token = localStorage.getItem('railway_token');
   if (!token) return null;
 
   try {
@@ -81,14 +105,14 @@ const initializeSession = async (): Promise<RailwaySession | null> => {
       return session;
     } else {
       // Token is invalid, clear it
-      localStorage.removeItem('authToken');
-      railwayApi.clearAuth();
+      localStorage.removeItem('railway_token');
+      railwayApi.clearToken();
       return null;
     }
   } catch (error) {
     console.error('Error initializing session:', error);
-    localStorage.removeItem('authToken');
-    railwayApi.clearAuth();
+    localStorage.removeItem('railway_token');
+    railwayApi.clearToken();
     return null;
   }
 };
@@ -107,12 +131,12 @@ export const railwayAuth = {
     }
 
     try {
-      const result = await railwayApi.register(
+      const result = await railwayApi.signUp({
         email, 
         password, 
-        options?.firstName, 
-        options?.lastName
-      );
+        firstName: options?.firstName, 
+        lastName: options?.lastName
+      });
 
       if (result.success) {
         const session = createSession(result);
@@ -153,7 +177,7 @@ export const railwayAuth = {
     }
 
     try {
-      const result = await railwayApi.login(email, password);
+      const result = await railwayApi.signIn({ email, password });
 
       if (result.success) {
         const session = createSession(result);
@@ -185,7 +209,7 @@ export const railwayAuth = {
   // Sign out
   signOut: async () => {
     try {
-      const result = await railwayApi.logout();
+      const result = await railwayApi.signOut();
       
       // Clear session regardless of API response
       currentSession = null;
@@ -334,6 +358,3 @@ export const railwayAuth = {
 
 // Backward compatibility aliases
 export const auth = railwayAuth;
-
-// Re-export types for convenience
-export type { User } from './railwayApi';
