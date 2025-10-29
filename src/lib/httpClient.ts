@@ -153,6 +153,14 @@ export const api = {
         error: result.success ? null : { message: result.error }
       }));
     },
+
+    // Request password reset email
+    requestPasswordReset: (email: string) => {
+      return railwayApi.requestPasswordReset(email).then(result => ({
+        data: result.success ? { message: result.message || 'Reset email sent' } : null,
+        error: result.success ? null : { message: result.error }
+      }));
+    },
   },
 
   // Personas - Now using Railway API directly

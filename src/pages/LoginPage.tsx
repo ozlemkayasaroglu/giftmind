@@ -83,9 +83,12 @@ const LoginPage: React.FC = () => {
             </button>
           </div>
           
-          <div className="text-center">
+          <div className="flex items-center justify-between text-sm">
             <Link to="/register" className="text-indigo-600 hover:text-indigo-500">
               Don't have an account? Sign up
+            </Link>
+            <Link to="/forgot-password" className="text-indigo-600 hover:text-indigo-500">
+              Forgot password?
             </Link>
           </div>
         </form>

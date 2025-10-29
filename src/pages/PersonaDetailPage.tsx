@@ -1,244 +1,291 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { api } from '../lib';
-import type { Persona, GiftRecommendation } from '../lib/types';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { api } from "../lib";
+import { Gift } from "lucide-react";
+import PersonaForm, { type PersonaFormValues } from "../components/PersonaForm";
+
+// Local Persona type to map common fields
+type Persona = {
+  id: string;
+  name: string;
+  description?: string;
+  interests?: string[] | string;
+  // Notes can come as string, string[], or array of objects from Supabase/BE
+  notes?: string | string[] | Array<Record<string, any>>;
+  birthDate?: string; // ISO date (YYYY-MM-DD)
+  birth_date?: string; // alt naming
+  dob?: string; // alt naming
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: any;
+};
+
+const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string) ||
+  "https://giftmind-be-production.up.railway.app";
+
+const getAuthToken = () =>
+  localStorage.getItem("railway_token") ||
+  localStorage.getItem("authToken") ||
+  "";
+
+// Normalize interests from string | string[] | JSON-string -> string[]
+const normalizeInterests = (raw: unknown): string[] => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.filter((x) => typeof x === "string") as string[];
+  if (typeof raw === "string") {
+    const str = raw.trim();
+    // Try JSON parse first (e.g., "[\"books\",\"music\"]")
+    try {
+      const parsed = JSON.parse(str);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((x) => typeof x === "string") as string[];
+      }
+    } catch {/* not JSON, fallback split */}
+    return str
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
+  return [];
+};
+
+// Normalize notes from string | string[] | object[] -> string
+const normalizeNotes = (raw: unknown, fallback?: string): string => {
+  if (typeof raw === "string") return raw;
+  if (Array.isArray(raw)) {
+    // If array of strings
+    const strings = raw.filter((x) => typeof x === "string") as string[];
+    if (strings.length === raw.length) return strings.join("\n");
+    // If array of objects, try common fields
+    const texts = (raw as Array<Record<string, any>>)
+      .map((o) => (o?.content ?? o?.text ?? o?.note ?? "").toString().trim())
+      .filter((s) => s.length > 0);
+    if (texts.length) return texts.join("\n");
+  }
+  return fallback || "";
+};
+
+const normalizePersonaToForm = (p: Persona | null): PersonaFormValues => ({
+  name: p?.name ?? "",
+  birthDate: p?.birthDate || p?.birth_date || p?.dob || "",
+  interests: normalizeInterests(p?.interests),
+  // Use backend description as the form's description field
+  notes: typeof p?.description === "string" && p.description
+    ? p.description
+    : normalizeNotes(p?.notes),
+});
 
 const PersonaDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [persona, setPersona] = useState<Persona | null>(null);
-  const [recommendations, setRecommendations] = useState<GiftRecommendation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (id) {
-      fetchPersonaData(id);
+  const [editing, setEditing] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggesting, setSuggesting] = useState(false);
+
+  const authHeader = useMemo(() => {
+    const token = getAuthToken();
+    return token
+      ? { Authorization: `Bearer ${token}` }
+      : ({} as Record<string, string>);
+  }, []);
+
+  const fetchPersona = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      // Use centralized API client to support various response shapes ({data} | {persona} | plain)
+      const { data, error } = await api.personas.get(id);
+      if (error) throw new Error(error.message || "Failed to load persona");
+      setPersona((data as any) ?? null);
+    } catch (e: any) {
+      setError(e?.message || "Failed to load persona");
+    } finally {
+      setLoading(false);
     }
   }, [id]);
 
-  const fetchPersonaData = async (personaId: string) => {
+  useEffect(() => {
+    fetchPersona();
+  }, [fetchPersona]);
+
+  const handleUpdate = async (values: PersonaFormValues) => {
+    if (!id) return;
+    setError(null);
+
     try {
-      setLoading(true);
-      
-      // Fetch persona details
-      const personaResponse = await api.personas.get(personaId);
-      if (personaResponse.error) {
-        setError(personaResponse.error.message || 'Failed to fetch persona');
-        return;
+      // Send snake_case for birth_date; keep interests array and notes string
+      const res = await fetch(`${API_BASE_URL}/api/personas/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader,
+        } as HeadersInit,
+        body: JSON.stringify({
+          name: values.name,
+          description: values.notes,
+          notes: values.notes,
+          interests: values.interests,
+          birth_date: values.birthDate,
+        }),
+      });
+
+      const body = await res.text();
+      const json = body ? JSON.parse(body) : {};
+      if (!res.ok) {
+        throw new Error(
+          json?.message || json?.error || `Failed to update persona (${res.status})`
+        );
       }
-      
-      setPersona(personaResponse.data as Persona);
-      
-      // Fetch recommendations
-      const recommendationsResponse = await api.gifts.getRecommendations(personaId);
-      if (recommendationsResponse.error) {
-        console.error('Failed to fetch recommendations:', recommendationsResponse.error);
-        // Don't show error for recommendations, just log it
-      } else {
-        setRecommendations((recommendationsResponse.data as GiftRecommendation[]) || []);
+
+      // Re-fetch to get the server canonical record (from Supabase)
+      await fetchPersona();
+      setEditing(false);
+    } catch (e: any) {
+      setError(e?.message || "Failed to update");
+    }
+  };
+
+  const handleSuggest = async () => {
+    if (!id) return;
+    setSuggesting(true);
+    setError(null);
+
+    try {
+      const { data, error } = await api.gifts.getRecommendations(id);
+      if (error) {
+        throw new Error(error.message || "Failed to get suggestions");
       }
-      
-    } catch (err) {
-      setError('Failed to load persona data');
+      const list = Array.isArray(data) ? data : [];
+      setSuggestions(list as string[]);
+    } catch (e: any) {
+      setError(e?.message || "Failed to get suggestions");
     } finally {
-      setLoading(false);
+      setSuggesting(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading persona details...</p>
+      <div className="p-6">
+        <div className="text-sm text-gray-600">Loading persona…</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">
+          {error}
         </div>
       </div>
     );
   }
 
-  if (error || !persona) {
+  if (!persona) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Oops!</h2>
-          <p className="text-gray-600 mb-6">{error || 'Persona not found'}</p>
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-          >
-            Back to Dashboard
-          </Link>
-        </div>
+      <div className="p-6">
+        <div className="text-sm text-gray-600">Persona not found.</div>
       </div>
     );
   }
+
+  const formInitial = normalizePersonaToForm(persona);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="py-10">
-        <header>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center space-x-4">
-              <Link
-                to="/dashboard"
-                className="text-indigo-600 hover:text-indigo-500 flex items-center"
-              >
-                <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                Back to Dashboard
-              </Link>
-            </div>
-            <h1 className="text-3xl font-bold leading-tight text-gray-900 mt-4">
-              {persona.name}
-            </h1>
+    <div className="p-6 space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">
+            {persona.name}
+          </h1>
+          {formInitial.birthDate && (
+            <p className="text-sm text-gray-600">
+              Birth Date: {formInitial.birthDate}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setEditing((v) => !v)}
+            className="inline-flex items-center rounded-md bg-violet-400 px-3 py-2 text-sm font-medium text-white hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {editing ? "Cancel" : "Personayı Düzenle"}
+          </button>
+          <button
+            onClick={handleSuggest}
+            disabled={suggesting}
+            className="inline-flex items-center gap-2 rounded-md bg-amber-400 px-3 py-2 text-sm font-medium text-white hover:bg-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+          >
+            <Gift className="h-4 w-4" />
+            {suggesting ? "Getting Suggestions…" : "Hediye Önerileri"}
+          </button>
+        </div>
+      </div>
+
+      {!editing && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-gray-800">
+              İlgi alanları
+            </h2>
+            {formInitial.interests.length ? (
+              <ul className="list-disc pl-5 text-sm text-gray-700">
+                {formInitial.interests.map((it, idx) => (
+                  <li key={idx}>{it}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-500">İlgi alanı girilmemiş</p>
+            )}
           </div>
-        </header>
-        
-        <main>
-          <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div className="px-4 py-8 sm:px-0">
-              {/* Persona Details Card */}
-              <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
-                <div className="px-4 py-5 sm:px-6">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900">
-                    Persona Details
-                  </h3>
-                  <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                    {persona.description}
-                  </p>
-                </div>
-                
-                <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
-                  <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Age Range</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{persona.age_range}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Budget Range</dt>
-                      <dd className="mt-1 text-sm text-gray-900">
-                        ${persona.budget_min} - ${persona.budget_max}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Relationship</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{persona.relationship}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Created</dt>
-                      <dd className="mt-1 text-sm text-gray-900">
-                        {new Date(persona.created_at).toLocaleDateString()}
-                      </dd>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <dt className="text-sm font-medium text-gray-500">Interests</dt>
-                      <dd className="mt-1 text-sm text-gray-900">
-                        <div className="flex flex-wrap gap-2">
-                          {persona.interests.map((interest, index) => (
-                            <span
-                              key={index}
-                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
-                            >
-                              {interest}
-                            </span>
-                          ))}
-                        </div>
-                      </dd>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <dt className="text-sm font-medium text-gray-500">Personality Traits</dt>
-                      <dd className="mt-1 text-sm text-gray-900">
-                        <div className="flex flex-wrap gap-2">
-                          {persona.personality_traits.map((trait, index) => (
-                            <span
-                              key={index}
-                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
-                            >
-                              {trait}
-                            </span>
-                          ))}
-                        </div>
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              </div>
-              
-              {/* Gift Recommendations */}
-              <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                <div className="px-4 py-5 sm:px-6">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900">
-                    Gift Recommendations
-                  </h3>
-                  <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                    AI-curated gift ideas perfect for this persona
-                  </p>
-                </div>
-                
-                <div className="border-t border-gray-200">
-                  {recommendations.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="text-gray-500 mb-4">
-                        <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                        </svg>
-                      </div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No recommendations yet</h3>
-                      <p className="text-gray-600 mb-6">We're generating personalized gift recommendations for you.</p>
-                      <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
-                        Generate Recommendations
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-gray-200">
-                      {recommendations.map((recommendation) => (
-                        <div key={recommendation.id} className="px-4 py-6 sm:px-6">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <h4 className="text-lg font-medium text-gray-900">
-                                  {recommendation.gift.name}
-                                </h4>
-                                <div className="ml-4 flex items-center">
-                                  <span className="text-sm font-medium text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
-                                    {recommendation.match_score}% match
-                                  </span>
-                                </div>
-                              </div>
-                              <p className="text-sm text-gray-600 mt-1">
-                                {recommendation.gift.description}
-                              </p>
-                              <div className="mt-2">
-                                <span className="text-lg font-semibold text-gray-900">
-                                  ${recommendation.gift.price}
-                                </span>
-                                <span className="ml-2 text-sm text-gray-500">
-                                  in {recommendation.gift.category}
-                                </span>
-                              </div>
-                              <div className="mt-3">
-                                <h5 className="text-sm font-medium text-gray-700 mb-1">Why this is perfect:</h5>
-                                <ul className="text-sm text-gray-600 space-y-1">
-                                  {recommendation.reasons.map((reason, index) => (
-                                    <li key={index} className="flex items-start">
-                                      <span className="text-indigo-500 mr-2">•</span>
-                                      {reason}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-gray-800">Açıklama</h2>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">
+              {persona.description || "—"}
+            </p>
           </div>
-        </main>
+        </div>
+      )}
+
+      {editing && (
+        <div className="border rounded-md p-4">
+          <PersonaForm
+            initialData={formInitial}
+            submitLabel="Save Changes"
+            onSubmit={handleUpdate}
+          />
+        </div>
+      )}
+
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold text-gray-800">
+          Hediye Önerileri
+        </h2>
+        {suggestions.length ? (
+          <ul className="list-disc pl-5 text-sm text-gray-700">
+            {suggestions.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-gray-500">Henüz öneri yok.</p>
+        )}
+      </div>
+
+      <div>
+        <Link
+          to="/dashboard"
+          className="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+        >
+          Kontrol Paneline git
+        </Link>
       </div>
     </div>
   );

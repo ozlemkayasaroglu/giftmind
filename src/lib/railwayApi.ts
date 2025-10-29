@@ -1,7 +1,7 @@
 // Railway API Client for GiftMind
 // Backend deployment: https://giftmind-be-production.up.railway.app
 
-const API_BASE_URL = 'https://giftmind-be-production.up.railway.app';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://giftmind-be-production.up.railway.app';
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -53,25 +53,58 @@ class RailwayAPI {
 
   constructor() {
     this.baseURL = API_BASE_URL;
-    this.token = localStorage.getItem('railway_token') || localStorage.getItem('authToken') || null;
+    // Read any existing token from either key
+    this.token =
+      localStorage.getItem('railway_token') ||
+      localStorage.getItem('authToken') ||
+      null;
+  }
+
+  // Helper to always get the freshest token (in case another client set it)
+  getToken(): string | null {
+    const latest =
+      this.token ||
+      localStorage.getItem('railway_token') ||
+      localStorage.getItem('authToken');
+    if (latest && latest !== this.token) {
+      this.token = latest;
+    }
+    return latest || null;
+  }
+
+  // Set authentication token and persist under both keys for compatibility
+  setToken(token: string) {
+    this.token = token;
+    localStorage.setItem('railway_token', token);
+    localStorage.setItem('authToken', token);
+  }
+
+  // Clear authentication token from both keys
+  clearToken() {
+    this.token = null;
+    localStorage.removeItem('railway_token');
+    localStorage.removeItem('authToken');
   }
 
   // Helper method for API calls
   private async apiCall<T = any>(
-    method: string, 
-    endpoint: string, 
+    method: string,
+    endpoint: string,
     data: any = null
   ): Promise<ApiResponse<T>> {
+    // Ensure we use the latest token before each call
+    const currentToken = this.getToken();
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+    if (currentToken) {
+      headers['Authorization'] = `Bearer ${currentToken}`;
     }
 
     console.log(`🌐 API Call: ${method} ${endpoint}`);
-    console.log('📤 Headers:', headers);
+    console.log('📤 Headers:', { ...headers, Authorization: headers['Authorization'] ? 'Bearer ***' : undefined });
     if (data) console.log('📤 Data:', data);
 
     const config: RequestInit = {
@@ -87,11 +120,11 @@ class RailwayAPI {
       const response = await fetch(`${this.baseURL}${endpoint}`, config);
       console.log(`📥 Response status: ${response.status}`);
       console.log(`📥 Full URL: ${this.baseURL}${endpoint}`);
-      
+
       // Get raw response text first
       const responseText = await response.text();
       console.log('📥 Raw response:', responseText.substring(0, 200) + (responseText.length > 200 ? '...' : ''));
-      
+
       // Try to parse as JSON
       let result;
       try {
@@ -102,34 +135,27 @@ class RailwayAPI {
         console.log('📄 Response appears to be HTML/Text, not JSON');
         throw new Error(`Server returned non-JSON response: ${responseText.substring(0, 100)}...`);
       }
-      
+
       if (!response.ok) {
         throw new Error(result.message || `HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       return {
         success: true,
-        ...result
+        ...result,
       };
     } catch (error: any) {
       console.error('🚨 Railway API Error:', error);
       return {
         success: false,
-        error: error.message || 'API request failed'
+        error: error.message || 'API request failed',
       };
     }
   }
 
-  // Set authentication token
-  setToken(token: string) {
-    this.token = token;
-    localStorage.setItem('railway_token', token);
-  }
-
-  // Clear authentication token
-  clearToken() {
-    this.token = null;
-    localStorage.removeItem('railway_token');
+  // Health check
+  async healthCheck(): Promise<ApiResponse<{ status: string }>> {
+    return this.apiCall('GET', '/health');
   }
 
   // Get current user
@@ -145,11 +171,12 @@ class RailwayAPI {
     lastName?: string;
   }): Promise<ApiResponse<{ user: User; token: string }>> {
     const response = await this.apiCall('POST', '/api/register', userData);
-    
-    if (response.success && response.token) {
-      this.setToken(response.token);
+
+    const token = response.token || response.session?.accessToken;
+    if ((response as any).success && token) {
+      this.setToken(token);
     }
-    
+
     return response;
   }
 
@@ -158,11 +185,12 @@ class RailwayAPI {
     password: string;
   }): Promise<ApiResponse<{ user: User; token: string }>> {
     const response = await this.apiCall('POST', '/api/login', credentials);
-    
-    if (response.success && response.token) {
-      this.setToken(response.token);
+
+    const token = response.token || response.session?.accessToken;
+    if ((response as any).success && token) {
+      this.setToken(token);
     }
-    
+
     return response;
   }
 
@@ -172,36 +200,80 @@ class RailwayAPI {
     return response;
   }
 
-  // Persona methods
+  // Request password reset email
+  async requestPasswordReset(email: string): Promise<ApiResponse<{ message?: string }>> {
+    return this.apiCall('POST', '/api/password/forgot', { email });
+  }
+
+  // Backward-compat auth wrappers (used by httpClient)
+  login(email: string, password: string) {
+    return this.signIn({ email, password });
+  }
+  register(email: string, password: string, firstName?: string, lastName?: string) {
+    return this.signUp({ email, password, firstName, lastName });
+  }
+  logout() {
+    return this.signOut();
+  }
+
+  // Personas
   async getPersonas(): Promise<ApiResponse<Persona[]>> {
-    return await this.apiCall<Persona[]>('GET', '/api/personas');
+    const res = await this.apiCall<any>('GET', '/api/personas');
+    if (!res.success) return res as ApiResponse<Persona[]>;
+    const data = (res as any).data ?? (res as any).personas ?? (res as any).items ?? [];
+    return { success: true, data };
+  }
+
+  async getPersona(id: string): Promise<ApiResponse<Persona>> {
+    const res = await this.apiCall<any>('GET', `/api/personas/${id}`);
+    if (!res.success) return res as ApiResponse<Persona>;
+    const data = (res as any).data ?? (res as any).persona ?? res;
+    return { success: true, data };
   }
 
   async createPersona(personaData: CreatePersonaData): Promise<ApiResponse<Persona>> {
-    console.log('🔐 Token check:', this.token ? 'Token exists' : 'No token');
-    console.log('🔐 Token value:', this.token ? `${this.token.substring(0, 20)}...` : 'null');
-    console.log('📋 Creating persona:', personaData);
-    
-    // Let's also check localStorage directly
-    const storedToken = localStorage.getItem('railway_token');
-    console.log('💾 Stored token:', storedToken ? `${storedToken.substring(0, 20)}...` : 'null');
-    
-    const result = await this.apiCall<Persona>('POST', '/api/personas', personaData);
-    console.log('✅ Create persona result:', result);
-    return result;
+    console.log('🔐 Token (before create):', this.getToken() ? 'exists' : 'missing');
+    const res = await this.apiCall<any>('POST', '/api/personas', personaData);
+    console.log('✅ Create persona raw result:', res);
+    if (!res.success) return res as ApiResponse<Persona>;
+    const data = (res as any).data ?? (res as any).persona ?? res;
+    return { success: true, data };
   }
 
   async updatePersona(id: string, personaData: Partial<CreatePersonaData>): Promise<ApiResponse<Persona>> {
-    return await this.apiCall<Persona>('PUT', `/api/personas/${id}`, personaData);
+    const res = await this.apiCall<any>('PUT', `/api/personas/${id}`, personaData);
+    if (!res.success) return res as ApiResponse<Persona>;
+    const data = (res as any).data ?? (res as any).persona ?? res;
+    return { success: true, data };
   }
 
   async deletePersona(id: string): Promise<ApiResponse> {
     return await this.apiCall('DELETE', `/api/personas/${id}`);
   }
 
-  // Gift suggestions (future implementation)
-  async getGiftSuggestions(personaId: string): Promise<ApiResponse<any[]>> {
-    return await this.apiCall('GET', `/api/personas/${personaId}/gifts`);
+  // Gift recommendations
+  async getGiftRecommendations(personaId: string): Promise<ApiResponse<any[]>> {
+    const res = await this.apiCall<any>('POST', `/api/gift/recommend`, { personaId });
+    if (!res.success) return res as ApiResponse<any[]>;
+    const data = (res as any).data ?? (res as any).suggestions ?? (res as any).recommendations ?? [];
+    return { success: true, data };
+  }
+
+  // Optional stubs for future endpoints
+  async searchGifts(_query: string, _filters?: any): Promise<ApiResponse<any>> {
+    return { success: false, error: 'Not implemented' } as any;
+  }
+
+  async getGiftCategories(): Promise<ApiResponse<any>> {
+    return { success: false, error: 'Not implemented' } as any;
+  }
+
+  async getUserPreferences(): Promise<ApiResponse<any>> {
+    return { success: false, error: 'Not implemented' } as any;
+  }
+
+  async updateUserPreferences(_preferences: any): Promise<ApiResponse<any>> {
+    return { success: false, error: 'Not implemented' } as any;
   }
 }
 

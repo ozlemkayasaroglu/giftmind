@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context';
 import { api } from '../lib';
 import type { Persona } from '../lib/types';
+import { Plus } from 'lucide-react';
 
 // Add Persona Modal Component
 const AddPersonaModal: React.FC<{
@@ -178,12 +179,11 @@ const AddPersonaModal: React.FC<{
 };
 
 const Dashboard: React.FC = () => {
-  const { user, logout, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const navigate = useNavigate();
 
   // Fetch personas on component mount
   useEffect(() => {
@@ -210,25 +210,22 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       const { data, error } = await api.personas.list();
-      
+
       if (error) {
         setError(error.message || 'Failed to fetch personas');
       } else {
-        setPersonas(Array.isArray(data) ? data : []);
+        // Accept both shapes: [Persona] or { success: boolean, personas: [Persona] }
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray((data as any)?.personas)
+          ? (data as any).personas
+          : [];
+        setPersonas(list as Persona[]);
       }
     } catch (err) {
       setError('Failed to load personas');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout failed:', error);
     }
   };
 
@@ -246,19 +243,33 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Safely compute budget range text across personas where budget fields may be missing
+  const getBudgetRangeText = (items: Persona[]) => {
+    const mins = items
+      .map(p => (typeof (p as any).budget_min === 'number' ? (p as any).budget_min : undefined))
+      .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v));
+    const maxs = items
+      .map(p => (typeof (p as any).budget_max === 'number' ? (p as any).budget_max : undefined))
+      .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v));
+    if (mins.length && maxs.length) {
+      return `₺${Math.min(...mins)} - ₺${Math.max(...maxs)}`;
+    }
+    return '—';
+  };
+
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Personalarınız yükleniyor...</p>
+          <p className="mt-4 text-gray-700">Personalarınız yükleniyor...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <div className="py-10">
         <header>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -268,7 +279,7 @@ const Dashboard: React.FC = () => {
                   Kontrol Paneli
                 </h1>
                 {user && (
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-gray-700">
                     Tekrar hoş geldiniz, {user.email}!
                   </p>
                 )}
@@ -276,15 +287,10 @@ const Dashboard: React.FC = () => {
               <div className="flex items-center space-x-4">
                 {user && (
                   <div className="flex items-center space-x-4">
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-700">
                       <span className="font-medium">{user.email}</span>
                     </div>
-                    <button
-                      onClick={handleLogout}
-                      className="bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                    >
-                      Çıkış Yap
-                    </button>
+                    {/* Logout button kept in Navbar */}
                   </div>
                 )}
               </div>
@@ -295,19 +301,19 @@ const Dashboard: React.FC = () => {
         <main>
           <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div className="px-4 py-8 sm:px-0">
-              <div className="border-4 border-dashed border-gray-200 rounded-lg p-8">
+              <div className="rounded-2xl p-8 bg-white/70 backdrop-blur shadow">
                 <div className="mb-8">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-2">
                     Hediye Personaları
                   </h2>
-                  <p className="text-gray-600 mb-6">
+                  <p className="text-gray-700 mb-6">
                     Herkes için mükemmel hediyeler bulmak üzere hediye verme personalarınızı yönetin.
                   </p>
                   
                   {/* Quick Stats */}
                   {personas.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                      <div className="bg-white rounded-lg shadow p-4">
+                      <div className="bg-white rounded-xl shadow p-4 transition hover:shadow-md">
                         <div className="flex items-center">
                           <div className="flex-shrink-0">
                             <svg className="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -321,7 +327,7 @@ const Dashboard: React.FC = () => {
                         </div>
                       </div>
                       
-                      <div className="bg-white rounded-lg shadow p-4">
+                      <div className="bg-white rounded-xl shadow p-4 transition hover:shadow-md">
                         <div className="flex items-center">
                           <div className="flex-shrink-0">
                             <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -330,14 +336,14 @@ const Dashboard: React.FC = () => {
                           </div>
                           <div className="ml-4">
                             <p className="text-2xl font-semibold text-gray-900">
-                              {personas.length > 0 ? `₺${Math.min(...personas.map(p => p.budget_min))} - ₺${Math.max(...personas.map(p => p.budget_max))}` : '₺0'}
+                              {getBudgetRangeText(personas)}
                             </p>
                             <p className="text-sm text-gray-600">Bütçe Aralığı</p>
                           </div>
                         </div>
                       </div>
                       
-                      <div className="bg-white rounded-lg shadow p-4">
+                      <div className="bg-white rounded-xl shadow p-4 transition hover:shadow-md">
                         <div className="flex items-center">
                           <div className="flex-shrink-0">
                             <svg className="h-8 w-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -357,11 +363,11 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {error && (
-                  <div className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                  <div className="mb-6 bg-red-100/80 border border-red-300 text-red-800 px-4 py-3 rounded-xl">
                     {error}
                     <button 
                       onClick={fetchPersonas}
-                      className="ml-4 text-red-800 underline hover:text-red-900"
+                      className="ml-4 text-red-900 underline hover:opacity-80"
                     >
                       Tekrar Dene
                     </button>
@@ -376,23 +382,21 @@ const Dashboard: React.FC = () => {
                       </svg>
                     </div>
                     <h3 className="text-xl font-medium text-gray-900 mb-2">Henüz persona yok</h3>
-                    <p className="text-gray-600 mb-8 max-w-sm mx-auto">
+                    <p className="text-gray-700 mb-8 max-w-sm mx-auto">
                       Hayatınızdaki özel insanlar için kişiselleştirilmiş hediye önerileri almak üzere ilk hediye personanızı oluşturun.
                     </p>
                     <button 
                       onClick={() => setIsModalOpen(true)}
-                      className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+                      className="inline-flex items-center px-6 py-3 rounded-xl shadow text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
                     >
-                      <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
+                      <Plus className="h-5 w-5 mr-2" />
                       İlk Personanızı Oluşturun
                     </button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {personas.map((persona) => (
-                      <div key={persona.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-6">
+                      <div key={persona.id} className="bg-white rounded-2xl shadow hover:shadow-lg transition-shadow duration-200 p-6">
                         <div className="flex items-start justify-between mb-3">
                           <h3 className="text-lg font-semibold text-gray-900 truncate">
                             {persona.name}
@@ -430,7 +434,9 @@ const Dashboard: React.FC = () => {
                             </svg>
                             <span className="text-gray-500">Bütçe:</span>
                             <span className="ml-1 font-semibold text-gray-900">
-                              ₺{persona.budget_min} - ₺{persona.budget_max}
+                              {typeof (persona as any).budget_min === 'number' && typeof (persona as any).budget_max === 'number'
+                                ? `₺${(persona as any).budget_min} - ₺${(persona as any).budget_max}`
+                                : 'Belirtilmemiş'}
                             </span>
                           </div>
                         </div>
@@ -460,12 +466,8 @@ const Dashboard: React.FC = () => {
                         {/* Action Button */}
                         <Link
                           to={`/persona/${persona.id}`}
-                          className="inline-flex items-center justify-center w-full px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+                          className="inline-flex items-center justify-center w-full px-4 py-2 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
                         >
-                          <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
                           Detayları Görüntüle
                         </Link>
                       </div>
@@ -477,11 +479,9 @@ const Dashboard: React.FC = () => {
                 <div className="mt-8 flex justify-center">
                   <button 
                     onClick={() => setIsModalOpen(true)}
-                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+                    className="inline-flex items-center px-6 py-3 rounded-xl shadow text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
                   >
-                    <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
+                    <Plus className="h-5 w-5 mr-2" />
                     Add New Persona
                   </button>
                 </div>
@@ -499,6 +499,6 @@ const Dashboard: React.FC = () => {
       />
     </div>
   );
-};
+}
 
 export default Dashboard;
