@@ -7,7 +7,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
+        <div className="min-h-screen" style={{ background: 'linear-gradient(180deg,#F6F7FB 0%, #EEF0F7 100%)' }}>
           <Navbar />
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

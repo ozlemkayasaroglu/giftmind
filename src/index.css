@@ -1,1 +1,22 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
+
+:root {
+  --gm-primary: #7B61FF; /* main accent */
+  --gm-secondary: #23C9FF; /* hover/links */
+  --gm-accent: #FF9EEA; /* icons/tags */
+  --gm-bg-dark: #0C0C1E; /* hero/nav */
+  --gm-bg-light: #F6F7FB; /* cards/content */
+  --gm-text: #1A1A1A; /* main text */
+}
+
+html, body, #root { min-height: 100%; }
+
+body {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  color: var(--gm-text);
+  background: linear-gradient(180deg, #F6F7FB 0%, #EEF0F7 100%);
+}
+
+a { color: var(--gm-secondary); }
+a:hover { opacity: .9; }

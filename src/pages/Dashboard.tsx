@@ -229,6 +229,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   const formatBirthDate = (dateString: string) => {
     if (!dateString) return 'Doğum tarihi yok';
     try {
@@ -242,6 +243,7 @@ const Dashboard: React.FC = () => {
       return 'Geçersiz tarih';
     }
   };
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 
   // Safely compute budget range text across personas where budget fields may be missing
   const getBudgetRangeText = (items: Persona[]) => {
@@ -259,236 +261,151 @@ const Dashboard: React.FC = () => {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          background:
+            'radial-gradient(1200px circle at 50% -20%, rgba(35,201,255,0.14), transparent 40%), linear-gradient(180deg, #0C0C1E 0%, #0B0B1A 100%)',
+        }}
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
-          <p className="mt-4 text-gray-700">Personalarınız yükleniyor...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderColor: 'var(--gm-secondary)' }}></div>
+          <p className="mt-4" style={{ color: 'rgba(255,255,255,0.75)' }}>Loading…</p>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen">
-      <div className="py-10">
-        <header>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-3xl font-bold leading-tight text-gray-900">
-                  Kontrol Paneli
-                </h1>
-                {user && (
-                  <p className="mt-1 text-sm text-gray-700">
-                    Tekrar hoş geldiniz, {user.email}!
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center space-x-4">
-                {user && (
-                  <div className="flex items-center space-x-4">
-                    <div className="text-sm text-gray-700">
-                      <span className="font-medium">{user.email}</span>
-                    </div>
-                    {/* Logout button kept in Navbar */}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </header>
-        
-        <main>
-          <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div className="px-4 py-8 sm:px-0">
-              <div className="rounded-2xl p-8 bg-white/70 backdrop-blur shadow">
-                <div className="mb-8">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                    Hediye Personaları
-                  </h2>
-                  <p className="text-gray-700 mb-6">
-                    Herkes için mükemmel hediyeler bulmak üzere hediye verme personalarınızı yönetin.
-                  </p>
-                  
-                  {/* Quick Stats */}
-                  {personas.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                      <div className="bg-white rounded-xl shadow p-4 transition hover:shadow-md">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0">
-                            <svg className="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                          </div>
-                          <div className="ml-4">
-                            <p className="text-2xl font-semibold text-gray-900">{personas.length}</p>
-                            <p className="text-sm text-gray-600">Toplam Persona</p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-white rounded-xl shadow p-4 transition hover:shadow-md">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0">
-                            <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                            </svg>
-                          </div>
-                          <div className="ml-4">
-                            <p className="text-2xl font-semibold text-gray-900">
-                              {getBudgetRangeText(personas)}
-                            </p>
-                            <p className="text-sm text-gray-600">Bütçe Aralığı</p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-white rounded-xl shadow p-4 transition hover:shadow-md">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0">
-                            <svg className="h-8 w-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                            </svg>
-                          </div>
-                          <div className="ml-4">
-                            <p className="text-2xl font-semibold text-gray-900">
-                              {personas.reduce((acc, p) => acc + (p.interests?.length || 0), 0)}
-                            </p>
-                            <p className="text-sm text-gray-600">Toplam İlgi Alanı</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+  const greetName = user?.email ? user.email.split('@')[0] : 'there';
+  const budgetText = getBudgetRangeText(personas);
 
-                {error && (
-                  <div className="mb-6 bg-red-100/80 border border-red-300 text-red-800 px-4 py-3 rounded-xl">
-                    {error}
-                    <button 
-                      onClick={fetchPersonas}
-                      className="ml-4 text-red-900 underline hover:opacity-80"
-                    >
-                      Tekrar Dene
-                    </button>
-                  </div>
-                )}
-                
-                {personas.length === 0 && !error ? (
-                  <div className="text-center py-16">
-                    <div className="text-gray-400 mb-6">
-                      <svg className="mx-auto h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-medium text-gray-900 mb-2">Henüz persona yok</h3>
-                    <p className="text-gray-700 mb-8 max-w-sm mx-auto">
-                      Hayatınızdaki özel insanlar için kişiselleştirilmiş hediye önerileri almak üzere ilk hediye personanızı oluşturun.
-                    </p>
-                    <button 
-                      onClick={() => setIsModalOpen(true)}
-                      className="inline-flex items-center px-6 py-3 rounded-xl shadow text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
-                    >
-                      <Plus className="h-5 w-5 mr-2" />
-                      İlk Personanızı Oluşturun
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {personas.map((persona) => (
-                      <div key={persona.id} className="bg-white rounded-2xl shadow hover:shadow-lg transition-shadow duration-200 p-6">
-                        <div className="flex items-start justify-between mb-3">
-                          <h3 className="text-lg font-semibold text-gray-900 truncate">
-                            {persona.name}
-                          </h3>
-                          <div className="flex-shrink-0">
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              Aktif
-                            </span>
-                          </div>
-                        </div>
-                        
-                        {/* Birth Date */}
-                        {persona.birth_date && (
-                          <div className="mb-3">
-                            <div className="flex items-center text-sm text-gray-600">
-                              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                              <span className="font-medium">Doğum:</span>
-                              <span className="ml-1">{formatBirthDate(persona.birth_date)}</span>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Description */}
-                        <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                          {persona.description || 'Açıklama sağlanmamış.'}
-                        </p>
-                        
-                        {/* Budget */}
-                        <div className="mb-4">
-                          <div className="flex items-center text-sm">
-                            <svg className="h-4 w-4 mr-2 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                            </svg>
-                            <span className="text-gray-500">Bütçe:</span>
-                            <span className="ml-1 font-semibold text-gray-900">
-                              {typeof (persona as any).budget_min === 'number' && typeof (persona as any).budget_max === 'number'
-                                ? `₺${(persona as any).budget_min} - ₺${(persona as any).budget_max}`
-                                : 'Belirtilmemiş'}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        {/* Interests */}
-                        <div className="mb-4">
-                          <div className="flex flex-wrap gap-1">
-                            {(persona.interests || []).slice(0, 3).map((interest, index) => (
-                              <span
-                                key={index}
-                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
-                              >
-                                {interest}
-                              </span>
-                            ))}
-                            {(persona.interests || []).length > 3 && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                +{(persona.interests || []).length - 3} more
-                              </span>
-                            )}
-                            {(!persona.interests || persona.interests.length === 0) && (
-                              <span className="text-xs text-gray-400 italic">İlgi alanı listelenmemiş</span>
-                            )}
-                          </div>
-                        </div>
-                        
-                        {/* Action Button */}
-                        <Link
-                          to={`/persona/${persona.id}`}
-                          className="inline-flex items-center justify-center w-full px-4 py-2 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
-                        >
-                          Detayları Görüntüle
-                        </Link>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {/* Add Persona Button */}
-                <div className="mt-8 flex justify-center">
-                  <button 
-                    onClick={() => setIsModalOpen(true)}
-                    className="inline-flex items-center px-6 py-3 rounded-xl shadow text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
-                  >
-                    <Plus className="h-5 w-5 mr-2" />
-                    Add New Persona
-                  </button>
-                </div>
-              </div>
+  return (
+    <div
+      className="min-h-screen"
+      style={{
+        background:
+          'radial-gradient(1200px circle at 50% -20%, rgba(35,201,255,0.14), transparent 40%), linear-gradient(180deg, #0C0C1E 0%, #0B0B1A 100%)',
+      }}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        {/* Hero */}
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold" style={{ color: '#FFFFFF' }}>
+            Welcome back, {greetName} <span role="img" aria-label="wave">👋</span>
+          </h1>
+          <p className="mt-2 text-sm md:text-base" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            Your creative personas and insights await.
+          </p>
+        </div>
+
+        {/* Error banner (if any) */}
+        {error && (
+          <div className="mb-6 rounded-xl px-4 py-3" style={{ backgroundColor: '#3b1d2a', color: '#ff9eb8', border: '1px solid rgba(255,158,186,0.3)' }}>
+            <div className="flex items-center justify-between">
+              <span>{error}</span>
+              <button onClick={() => setError('')} className="underline text-xs" style={{ color: '#ff9eb8' }}>Dismiss</button>
             </div>
           </div>
-        </main>
+        )}
+
+        {/* Stat cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-8">
+          <div
+            className="rounded-2xl p-5 md:p-6 flex items-center justify-between"
+            style={{
+              background: 'linear-gradient(135deg, #5B5FF1, #00C9A7)',
+              color: 'white',
+              boxShadow: '0 12px 40px rgba(0,201,167,0.25)'
+            }}
+          >
+            <div>
+              <div className="text-xs uppercase tracking-wide opacity-90">Total Personas</div>
+              <div className="text-3xl font-semibold mt-1">{personas.length}</div>
+            </div>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-90">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+
+          <div
+            className="rounded-2xl p-5 md:p-6 flex items-center justify-between"
+            style={{
+              background: 'linear-gradient(135deg, #5B5FF1, #00C9A7)',
+              color: 'white',
+              boxShadow: '0 12px 40px rgba(0,201,167,0.25)'
+            }}
+          >
+            <div>
+              <div className="text-xs uppercase tracking-wide opacity-90">Budget Range</div>
+              <div className="text-2xl md:text-3xl font-semibold mt-1">{budgetText}</div>
+            </div>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-90">
+              <path d="M3 3v18h18"/>
+              <path d="M19 9l-5 5-4-4-3 3"/>
+            </svg>
+          </div>
+        </div>
+
+        {/* Section header */}
+        <div className="flex items-center justify-between mb-4 md:mb-6">
+          <h2 className="text-lg md:text-xl font-semibold" style={{ color: '#FFFFFF' }}>Your Personas</h2>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-white hover:opacity-95"
+            style={{
+              backgroundColor: 'var(--gm-primary)',
+              boxShadow: '0 10px 30px rgba(123,97,255,0.35)'
+            }}
+          >
+            <Plus className="h-4 w-4" /> Add Persona
+          </button>
+        </div>
+
+        {/* Personas grid */}
+        {personas.length === 0 ? (
+          <div className="text-center py-16" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            No personas yet. Create your first one.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {personas.map((persona) => (
+              <div
+                key={persona.id}
+                className="rounded-3xl p-4 md:p-5 flex flex-col"
+                style={{
+                  backgroundColor: '#12132A',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  boxShadow: '0 10px 40px rgba(0,0,0,0.35)'
+                }}
+              >
+                <div
+                  className="h-36 md:h-40 w-full rounded-2xl mb-4"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(91,95,241,0.3), rgba(0,201,167,0.25))'
+                  }}
+                />
+                <div className="flex-1">
+                  <h3 className="text-base md:text-lg font-semibold" style={{ color: '#FFFFFF' }}>{persona.name}</h3>
+                  <p className="text-sm mt-1 line-clamp-2" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                    {persona.description || '—'}
+                  </p>
+                </div>
+                <div className="mt-4">
+                  <Link
+                    to={`/persona/${persona.id}`}
+                    className="text-sm font-medium"
+                    style={{ color: 'var(--gm-secondary)' }}
+                  >
+                    View Details →
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Add Persona Modal */}

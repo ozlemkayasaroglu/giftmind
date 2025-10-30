@@ -29,43 +29,69 @@ const ForgotPasswordPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full bg-white rounded-xl shadow p-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Şifremi Unuttum</h2>
-        <p className="text-sm text-gray-600 mb-6">Kayıtlı e-posta adresinizi girin, size şifre sıfırlama bağlantısı gönderelim.</p>
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{
+        background:
+          'radial-gradient(1200px circle at 50% -20%, rgba(35,201,255,0.18), transparent 40%), linear-gradient(180deg, #0C0C1E 0%, #0B0B1A 100%)',
+      }}
+    >
+      <div className="w-full max-w-md">
+        {/* Title */}
+        <div className="text-center">
+          <h1 className="text-3xl font-semibold text-white">giftMind</h1>
+          <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            Reset your password
+          </p>
+        </div>
 
-        {message && (
-          <div className="mb-4 bg-green-100 border border-green-400 text-green-800 px-4 py-3 rounded">{message}</div>
-        )}
-        {error && (
-          <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>
-        )}
+        {/* Card */}
+        <div
+          className="mt-8 rounded-2xl p-6 md:p-8"
+          style={{
+            backgroundColor: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            boxShadow:
+              '0 0 0 1px rgba(255,255,255,0.04), 0 20px 60px rgba(123,97,255,0.15), 0 10px 30px rgba(35,201,255,0.10)',
+          }}
+        >
+          {message && (
+            <div className="mb-4 text-sm rounded-xl px-3 py-2" style={{ backgroundColor: '#112717', color: '#34D399', border: '1px solid rgba(52,211,153,0.35)' }}>{message}</div>
+          )}
+          {error && (
+            <div className="mb-4 text-sm rounded-xl px-3 py-2" style={{ backgroundColor: '#3b1d2a', color: '#ff9eb8', border: '1px solid rgba(255,158,186,0.3)' }}>{error}</div>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">E-posta</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="ornek@mail.com"
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs mb-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                Email
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-xl px-3 py-2 text-sm focus:outline-none"
+                style={{ backgroundColor: '#17182B', color: '#E5E7EB', border: '1px solid #2A2B3F' }}
+                placeholder="ornek@mail.com"
+                disabled={isLoading}
+              />
+            </div>
+
+            <button
+              type="submit"
               disabled={isLoading}
-            />
-          </div>
+              className="w-full rounded-xl text-white font-medium py-2.5 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: 'var(--gm-primary)' }}
+            >
+              {isLoading ? 'Gönderiliyor…' : 'Sıfırlama Bağlantısı Gönder'}
+            </button>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full px-4 py-2 rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-          >
-            {isLoading ? 'Gönderiliyor...' : 'Sıfırlama Bağlantısı Gönder'}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <Link to="/login" className="text-indigo-600 hover:text-indigo-500">Giriş sayfasına dön</Link>
+            <div className="text-center text-sm" style={{ color: 'rgba(255,255,255,0.7)' }}>
+              <Link to="/login" style={{ color: 'var(--gm-primary)' }}>Giriş sayfasına dön</Link>
+            </div>
+          </form>
         </div>
       </div>
     </div>

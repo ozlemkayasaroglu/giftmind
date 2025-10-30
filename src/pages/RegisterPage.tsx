@@ -57,100 +57,164 @@ const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
-          </h2>
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{
+        background:
+          'radial-gradient(1200px circle at 50% -20%, rgba(35,201,255,0.18), transparent 40%), linear-gradient(180deg, #0C0C1E 0%, #0B0B1A 100%)',
+      }}
+    >
+      <div className="w-full max-w-md">
+        {/* Title */}
+        <div className="text-center">
+          <h1 className="text-3xl font-semibold text-white">giftMind</h1>
+          <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            Gift your mind with intelligence
+          </p>
         </div>
-        
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            {error}
+
+        {/* Card */}
+        <div
+          className="mt-8 rounded-2xl p-6 md:p-8"
+          style={{
+            backgroundColor: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            boxShadow:
+              '0 0 0 1px rgba(255,255,255,0.04), 0 20px 60px rgba(123,97,255,0.15), 0 10px 30px rgba(35,201,255,0.10)',
+          }}
+        >
+          {/* Tabs */}
+          <div
+            className="rounded-full p-1 mb-6 grid grid-cols-2 gap-1"
+            style={{ backgroundColor: '#1E2034' }}
+          >
+            <div
+              className="text-center text-sm font-medium py-2 rounded-full"
+              style={{ backgroundColor: '#2A2855', color: 'white' }}
+            >
+              Sign Up
+            </div>
+            <Link
+              to="/login"
+              className="text-center text-sm font-medium py-2 rounded-full"
+              style={{ color: 'rgba(255,255,255,0.6)' }}
+            >
+              Sign In
+            </Link>
           </div>
-        )}
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <input
-                type="text"
-                name="firstName"
-                required
-                value={formData.firstName}
-                onChange={handleChange}
-                className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="First name"
-                disabled={isLoading}
-              />
+
+          {error && (
+            <div
+              className="mb-4 text-sm rounded-xl px-3 py-2"
+              style={{ backgroundColor: '#3b1d2a', color: '#ff9eb8', border: '1px solid rgba(255,158,186,0.3)' }}
+            >
+              {error}
             </div>
-            <div>
-              <input
-                type="text"
-                name="lastName"
-                required
-                value={formData.lastName}
-                onChange={handleChange}
-                className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Last name"
-                disabled={isLoading}
-              />
+          )}
+
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                  First name
+                </label>
+                <input
+                  type="text"
+                  name="firstName"
+                  required
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  className="w-full rounded-xl px-3 py-2 text-sm focus:outline-none"
+                  style={{ backgroundColor: '#17182B', color: '#E5E7EB', border: '1px solid #2A2B3F' }}
+                  placeholder="First name"
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                  Last name
+                </label>
+                <input
+                  type="text"
+                  name="lastName"
+                  required
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  className="w-full rounded-xl px-3 py-2 text-sm focus:outline-none"
+                  style={{ backgroundColor: '#17182B', color: '#E5E7EB', border: '1px solid #2A2B3F' }}
+                  placeholder="Last name"
+                  disabled={isLoading}
+                />
+              </div>
             </div>
+
             <div>
+              <label className="block text-xs mb-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                Email
+              </label>
               <input
                 type="email"
                 name="email"
                 required
                 value={formData.email}
                 onChange={handleChange}
-                className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
+                className="w-full rounded-xl px-3 py-2 text-sm focus:outline-none"
+                style={{ backgroundColor: '#17182B', color: '#E5E7EB', border: '1px solid #2A2B3F' }}
+                placeholder="Enter your email address"
                 disabled={isLoading}
               />
             </div>
-            <div>
-              <input
-                type="password"
-                name="password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                disabled={isLoading}
-              />
-            </div>
-            <div>
-              <input
-                type="password"
-                name="confirmPassword"
-                required
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Confirm password"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
 
-          <div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                  Password
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full rounded-xl px-3 py-2 text-sm focus:outline-none"
+                  style={{ backgroundColor: '#17182B', color: '#E5E7EB', border: '1px solid #2A2B3F' }}
+                  placeholder="Enter your password"
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                  Confirm password
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  required
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="w-full rounded-xl px-3 py-2 text-sm focus:outline-none"
+                  style={{ backgroundColor: '#17182B', color: '#E5E7EB', border: '1px solid #2A2B3F' }}
+                  placeholder="Re-enter your password"
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-xl text-white font-medium py-2.5 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: 'var(--gm-primary)' }}
             >
-              {isLoading ? 'Creating account...' : 'Sign up'}
+              {isLoading ? 'Creating account…' : 'Create Account'}
             </button>
-          </div>
-          
-          <div className="text-center">
-            <Link to="/login" className="text-indigo-600 hover:text-indigo-500">
-              Already have an account? Sign in
-            </Link>
-          </div>
-        </form>
+
+            <div className="text-center text-sm" style={{ color: 'rgba(255,255,255,0.7)' }}>
+              Already have an account?{' '}
+              <Link to="/login" style={{ color: 'var(--gm-primary)' }}>Sign In</Link>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

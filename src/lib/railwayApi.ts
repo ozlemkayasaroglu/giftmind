@@ -47,6 +47,33 @@ interface CreatePersonaData {
   personality_traits?: string[];
 }
 
+interface Milestone {
+  id: string;
+  persona_id: string;
+  user_id: string;
+  title: string;
+  details?: string;
+  category?: string;
+  tags?: string[];
+  occurred_at?: string; // ISO date
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface PersonaEvent {
+  id: string;
+  persona_id: string;
+  user_id: string;
+  title: string;
+  details?: string;
+  category?: string;
+  type?: string;
+  tags?: string[];
+  occurred_at?: string; // ISO date
+  created_at?: string;
+  updated_at?: string;
+}
+
 class RailwayAPI {
   private baseURL: string;
   private token: string | null;
@@ -257,6 +284,71 @@ class RailwayAPI {
     if (!res.success) return res as ApiResponse<any[]>;
     const data = (res as any).data ?? (res as any).suggestions ?? (res as any).recommendations ?? [];
     return { success: true, data };
+  }
+
+  // Milestones
+  async getPersonaMilestones(personaId: string): Promise<ApiResponse<Milestone[]>> {
+    const res = await this.apiCall<any>('GET', `/api/personas/${personaId}/milestones`);
+    if (!res.success) return res as ApiResponse<Milestone[]>;
+    const data = (res as any).data ?? (res as any).milestones ?? [];
+    return { success: true, data };
+  }
+
+  async createPersonaMilestone(personaId: string, payload: {
+    title: string;
+    details?: string;
+    category?: string;
+    tags?: string[];
+    occurred_at?: string; // YYYY-MM-DD
+  }): Promise<ApiResponse<Milestone>> {
+    const res = await this.apiCall<any>('POST', `/api/personas/${personaId}/milestones`, payload);
+    if (!res.success) return res as ApiResponse<Milestone>;
+    const data = (res as any).data ?? (res as any).milestone ?? res;
+    return { success: true, data };
+  }
+
+  async deleteMilestone(milestoneId: string): Promise<ApiResponse> {
+    return this.apiCall('DELETE', `/api/persona-milestones/${milestoneId}`);
+  }
+
+  // Events
+  async getPersonaEvents(personaId: string): Promise<ApiResponse<PersonaEvent[]>> {
+    const res = await this.apiCall<any>('GET', `/api/personas/${personaId}/events`);
+    if (!res.success) return res as ApiResponse<PersonaEvent[]>;
+    const data = (res as any).data ?? (res as any).events ?? [];
+    return { success: true, data };
+  }
+
+  async createPersonaEvent(personaId: string, payload: {
+    title: string;
+    details?: string;
+    category?: string;
+    type?: string;
+    tags?: string[];
+    occurred_at?: string; // YYYY-MM-DD
+  }): Promise<ApiResponse<PersonaEvent>> {
+    const res = await this.apiCall<any>('POST', `/api/personas/${personaId}/events`, payload);
+    if (!res.success) return res as ApiResponse<PersonaEvent>;
+    const data = (res as any).data ?? (res as any).event ?? res;
+    return { success: true, data };
+  }
+
+  async updateEvent(eventId: string, payload: Partial<{
+    title: string;
+    details?: string;
+    category?: string;
+    type?: string;
+    tags?: string[];
+    occurred_at?: string;
+  }>): Promise<ApiResponse<PersonaEvent>> {
+    const res = await this.apiCall<any>('PUT', `/api/events/${eventId}`, payload);
+    if (!res.success) return res as ApiResponse<PersonaEvent>;
+    const data = (res as any).data ?? (res as any).event ?? res;
+    return { success: true, data };
+  }
+
+  async deleteEvent(eventId: string): Promise<ApiResponse> {
+    return this.apiCall('DELETE', `/api/events/${eventId}`);
   }
 
   // Optional stubs for future endpoints

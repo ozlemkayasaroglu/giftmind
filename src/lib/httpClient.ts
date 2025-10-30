@@ -271,4 +271,48 @@ export const api = {
       }));
     },
   },
+
+  // Milestones - Now using Railway API directly
+  milestones: {
+    list: (personaId: string) =>
+      railwayApi.getPersonaMilestones(personaId).then(result => ({
+        data: result.success ? result.data : null,
+        error: result.success ? null : { message: result.error }
+      })),
+    create: (personaId: string, payload: { title: string; details?: string; category?: string; tags?: string[]; occurred_at?: string; }) =>
+      railwayApi.createPersonaMilestone(personaId, payload).then(result => ({
+        data: result.success ? result.data : null,
+        error: result.success ? null : { message: result.error }
+      })),
+    delete: (milestoneId: string) =>
+      railwayApi.deleteMilestone(milestoneId).then(result => ({
+        data: result.success ? result : null,
+        error: result.success ? null : { message: result.error }
+      })),
+  },
+
+  // Events - Now using Railway API directly
+  events: {
+    list: (personaId: string) =>
+      railwayApi.getPersonaEvents(personaId).then(result => ({
+        data: result.success ? result.data : null,
+        error: result.success ? null : { message: result.error }
+      })),
+    create: (personaId: string, payload: { title: string; details?: string; category?: string; type?: string; tags?: string[]; occurred_at?: string; }) =>
+      railwayApi.createPersonaEvent(personaId, payload).then(result => ({
+        data: result.success ? result.data : null,
+        error: result.success ? null : { message: result.error }
+      })),
+    update: (eventId: string, payload: Partial<{ title: string; details?: string; category?: string; type?: string; tags?: string[]; occurred_at?: string; }>) =>
+      railwayApi.updateEvent(eventId, payload).then(result => ({
+        data: result.success ? result.data : null,
+        error: result.success ? null : { message: result.error }
+      })),
+    delete: (eventId: string) =>
+      railwayApi.deleteEvent(eventId).then(result => ({
+        data: result.success ? result : null,
+        error: result.success ? null : { message: result.error }
+      })),
+  },
+
 };
