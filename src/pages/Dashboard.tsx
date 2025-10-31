@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context';
 import { api } from '../lib';
 import type { Persona } from '../lib/types';
-import { Plus } from 'lucide-react';
+import { Plus, X, Upload, Tag as TagIcon, Sparkles } from 'lucide-react';
 
 // Add Persona Modal Component
 const AddPersonaModal: React.FC<{
@@ -11,16 +11,97 @@ const AddPersonaModal: React.FC<{
   onClose: () => void;
   onPersonaAdded: () => void;
 }> = ({ isOpen, onClose, onPersonaAdded }) => {
+  const traitOptions = ['Creative','Analytical','Spontaneous','Empathetic','Pragmatic','Optimistic'];
+
   const [formData, setFormData] = useState({
     name: '',
-    birthDate: '',
-    description: '',
-    interests: '',
+    role: '',
+    ageMin: 25,
+    ageMax: 45,
+    goals: '',
+    challenges: '',
+    description: '', // Overview text
+    interestsInput: '',
     budgetMin: '',
     budgetMax: '',
+    behavioralInsights: '',
+    notes: '',
   });
+
+  const [selectedTraits, setSelectedTraits] = useState<string[]>([]);
+  const [customTrait, setCustomTrait] = useState('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+
+  // Temp Events to create after persona is created
+  type NewEvent = { title: string; details?: string; occurred_at?: string };
+  const [eventsDraft, setEventsDraft] = useState<NewEvent[]>([]);
+  const [evTitle, setEvTitle] = useState('');
+  const [evDetails, setEvDetails] = useState('');
+  const [evDate, setEvDate] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      role: '',
+      ageMin: 25,
+      ageMax: 45,
+      goals: '',
+      challenges: '',
+      description: '',
+      interestsInput: '',
+      budgetMin: '',
+      budgetMax: '',
+      behavioralInsights: '',
+      notes: '',
+    });
+    setSelectedTraits([]);
+    setCustomTrait('');
+    setAvatarFile(null);
+    setEventsDraft([]);
+    setEvTitle('');
+    setEvDetails('');
+    setEvDate('');
+  };
+
+  const addCustomTrait = () => {
+    const t = customTrait.trim();
+    if (!t) return;
+    if (!selectedTraits.includes(t)) setSelectedTraits((s) => [...s, t]);
+    setCustomTrait('');
+  };
+
+  const toggleTrait = (t: string) => {
+    setSelectedTraits((s) => (s.includes(t) ? s.filter((x) => x !== t) : [...s, t]));
+  };
+
+  const addEventDraft = () => {
+    if (!evTitle.trim()) return;
+    setEventsDraft((d) => [
+      ...d,
+      { title: evTitle.trim(), details: evDetails.trim() || undefined, occurred_at: evDate || undefined },
+    ]);
+    setEvTitle('');
+    setEvDetails('');
+    setEvDate('');
+  };
+
+  const removeEventDraft = (idx: number) => {
+    setEventsDraft((d) => d.filter((_, i) => i !== idx));
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setAvatarFile(file);
+  };
+
+  const toArray = (value: string) =>
+    value
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,33 +109,43 @@ const AddPersonaModal: React.FC<{
     setError('');
 
     try {
-      const personaData = {
+      const personaData: any = {
         name: formData.name,
-        birth_date: formData.birthDate,
-        description: formData.description,
-        interests: formData.interests.split(',').map(i => i.trim()).filter(i => i),
-        budget_min: parseInt(formData.budgetMin) || 0,
-        budget_max: parseInt(formData.budgetMax) || 1000,
+        role: formData.role || undefined,
+        description: formData.description || undefined,
+        goal: formData.goals || undefined,
+        challenge: formData.challenges || undefined,
+        interests: toArray(formData.interestsInput),
+        personality_traits: selectedTraits,
+        age_min: Number.isFinite(Number(formData.ageMin)) ? Number(formData.ageMin) : undefined,
+        age_max: Number.isFinite(Number(formData.ageMax)) ? Number(formData.ageMax) : undefined,
+        budget_min: parseInt(formData.budgetMin) || undefined,
+        budget_max: parseInt(formData.budgetMax) || undefined,
+        insights: formData.behavioralInsights || undefined,
+        notes: formData.notes || undefined,
       };
 
-      const { error } = await api.personas.create(personaData);
-      
+      // Avatar upload is not wired to backend yet. Placeholder retained in UI only.
+
+      const { data: created, error } = await api.personas.create(personaData);
       if (error) {
         setError(error.message || 'Persona oluşturulamadı');
-      } else {
-        onPersonaAdded();
-        onClose();
-        // Reset form
-        setFormData({
-          name: '',
-          birthDate: '',
-          description: '',
-          interests: '',
-          budgetMin: '',
-          budgetMax: '',
-        });
+        setLoading(false);
+        return;
       }
-    } catch (err) {
+
+      // Create initial events if any
+      if ((created as any)?.id && eventsDraft.length) {
+        const pid = (created as any).id as string;
+        for (const ev of eventsDraft) {
+          await api.events.create(pid, ev);
+        }
+      }
+
+      onPersonaAdded();
+      onClose();
+      resetForm();
+    } catch (err: any) {
       setError('Persona oluşturulamadı');
     } finally {
       setLoading(false);
@@ -64,111 +155,330 @@ const AddPersonaModal: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-        <div className="mt-3">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Yeni Persona Ekle</h3>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+    <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center overflow-y-auto" style={{ background:
+      'radial-gradient(1200px circle at 50% -20%, rgba(35,201,255,0.14), transparent 40%), rgba(0,0,0,0.55)' }}>
+      <div className="w-full max-w-3xl mx-auto my-8 md:my-12 rounded-3xl" style={{ backgroundColor: '#12132A', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 30px 70px rgba(0,0,0,0.55)'}}>
+        <div className="p-6 md:p-8">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h3 className="text-2xl md:text-3xl font-bold" style={{ color: '#FFFFFF' }}>Create a New Persona</h3>
+              <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                Define your next creative AI persona to power your projects.
+              </p>
+            </div>
+            <button onClick={onClose} className="rounded-full p-2 hover:opacity-90" style={{ color: '#FFFFFF', backgroundColor: 'rgba(255,255,255,0.06)'}} aria-label="Close">
+              <X className="h-5 w-5" />
             </button>
           </div>
 
           {error && (
-            <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            <div className="mb-4 rounded-xl p-3 text-sm border" style={{ backgroundColor: '#3b1d2a', color: '#ff9eb8', borderColor: 'rgba(255,158,186,0.3)' }}>
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">İsim</label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Persona ismini girin"
-              />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Row: Name + Role */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: '#C9CBF0' }}>Persona Name / Nickname</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Enter a name for your persona"
+                  className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2"
+                  style={{ borderColor: '#2A2B3F', backgroundColor: '#17182B', color: '#E5E7EB' }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: '#C9CBF0' }}>Role / Occupation</label>
+                <input
+                  type="text"
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  placeholder="e.g., Creative Director"
+                  className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2"
+                  style={{ borderColor: '#2A2B3F', backgroundColor: '#17182B', color: '#E5E7EB' }}
+                />
+              </div>
             </div>
 
+            {/* Age Range (dual sliders) */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Doğum Tarihi</label>
-              <input
-                type="date"
-                value={formData.birthDate}
-                onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
+              <label className="block text-xs font-medium mb-2" style={{ color: '#C9CBF0' }}>Age Range</label>
+              <div className="space-y-2">
+                <div className="relative">
+                  {/* Min slider */}
+                  <input
+                    type="range"
+                    min={10}
+                    max={80}
+                    value={formData.ageMin}
+                    onChange={(e) => {
+                      const v = Math.min(Number(e.target.value), formData.ageMax - 1);
+                      setFormData({ ...formData, ageMin: v });
+                    }}
+                    className="w-full"
+                  />
+                  {/* Max slider overlays */}
+                  <input
+                    type="range"
+                    min={10}
+                    max={80}
+                    value={formData.ageMax}
+                    onChange={(e) => {
+                      const v = Math.max(Number(e.target.value), formData.ageMin + 1);
+                      setFormData({ ...formData, ageMax: v });
+                    }}
+                    className="w-full -mt-2 opacity-70"
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs" style={{ color: '#C9CBF0' }}>
+                  <span>{formData.ageMin}</span>
+                  <span>{formData.ageMax}</span>
+                </div>
+              </div>
             </div>
 
+            {/* Goals */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Açıklama</label>
+              <label className="block text-xs font-medium mb-1" style={{ color: '#C9CBF0' }}>Goals</label>
               <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                rows={3}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Bu personayı tanımlayın"
+                rows={4}
+                value={formData.goals}
+                onChange={(e) => setFormData({ ...formData, goals: e.target.value })}
+                placeholder="Describe the persona's primary objectives and aspirations..."
+                className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2"
+                style={{ borderColor: '#2A2B3F', backgroundColor: '#17182B', color: '#E5E7EB' }}
               />
             </div>
 
+            {/* Challenges */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">İlgi Alanları</label>
-              <input
-                type="text"
-                value={formData.interests}
-                onChange={(e) => setFormData({...formData, interests: e.target.value})}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="İlgi alanlarını virgülle ayırarak girin (örn: müzik, kitap, spor)"
+              <label className="block text-xs font-medium mb-1" style={{ color: '#C9CBF0' }}>Challenges</label>
+              <textarea
+                rows={4}
+                value={formData.challenges}
+                onChange={(e) => setFormData({ ...formData, challenges: e.target.value })}
+                placeholder="What are the main obstacles or pain points this persona faces?"
+                className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2"
+                style={{ borderColor: '#2A2B3F', backgroundColor: '#17182B', color: '#E5E7EB' }}
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Min Bütçe (₺)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.budgetMin}
-                  onChange={(e) => setFormData({...formData, budgetMin: e.target.value})}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Max Bütçe (₺)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.budgetMax}
-                  onChange={(e) => setFormData({...formData, budgetMax: e.target.value})}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="1000"
-                />
+            {/* Personality Traits */}
+            <div>
+              <label className="block text-xs font-medium mb-2" style={{ color: '#C9CBF0' }}>Personality Traits</label>
+              <div className="flex flex-wrap gap-2">
+                {traitOptions.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => toggleTrait(t)}
+                    className="px-3 py-1.5 rounded-full text-xs border"
+                    style={{
+                      backgroundColor: selectedTraits.includes(t) ? 'rgba(123,97,255,0.2)' : 'rgba(255,255,255,0.04)',
+                      color: selectedTraits.includes(t) ? '#E4E1FF' : '#C9CBF0',
+                      borderColor: 'rgba(255,255,255,0.12)'
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+                <div className="inline-flex items-center gap-2">
+                  <input
+                    value={customTrait}
+                    onChange={(e) => setCustomTrait(e.target.value)}
+                    placeholder="+ Add Trait"
+                    className="rounded-full px-3 py-1.5 text-xs border focus:outline-none"
+                    style={{ borderColor: '#2A2B3F', backgroundColor: '#17182B', color: '#E5E7EB' }}
+                  />
+                  <button type="button" onClick={addCustomTrait} className="rounded-full px-3 py-1.5 text-xs text-white" style={{ backgroundColor: 'var(--gm-secondary)' }}>
+                    Add
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4">
+            {/* Upload Avatar */}
+            <div>
+              <label className="block text-xs font-medium mb-2" style={{ color: '#C9CBF0' }}>Upload Avatar</label>
+              <label className="w-full rounded-2xl border-dashed border-2 flex flex-col items-center justify-center gap-2 py-8 cursor-pointer" style={{ borderColor: '#2A2B3F', backgroundColor: '#17182B', color: '#C9CBF0' }}>
+                <Upload className="h-6 w-6 opacity-80" />
+                <span className="text-xs">Optional. Click or drag a file to this area to upload.</span>
+                <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+                {avatarFile && <span className="text-xs mt-2" style={{ color: '#E5E7EB' }}>{avatarFile.name}</span>}
+              </label>
+            </div>
+
+            {/* Advanced Sections */}
+            <div className="grid grid-cols-1 gap-4">
+              {/* Overview */}
+              <div className="rounded-2xl p-4 border" style={{ backgroundColor: '#12132A', borderColor: 'rgba(255,255,255,0.06)' }}>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium" style={{ color: '#FFFFFF' }}>Overview</h4>
+                </div>
+                <textarea
+                  rows={3}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Short narrative about the persona..."
+                  className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2"
+                  style={{ borderColor: '#2A2B3F', backgroundColor: '#17182B', color: '#E5E7EB' }}
+                />
+              </div>
+
+              {/* Behavioral Insights */}
+              <div className="rounded-2xl p-4 border" style={{ backgroundColor: '#12132A', borderColor: 'rgba(255,255,255,0.06)' }}>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium" style={{ color: '#FFFFFF' }}>Behavioral Insights</h4>
+                </div>
+                <textarea
+                  rows={3}
+                  value={formData.behavioralInsights}
+                  onChange={(e) => setFormData({ ...formData, behavioralInsights: e.target.value })}
+                  placeholder="Habits, decision-making style, motivations..."
+                  className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2"
+                  style={{ borderColor: '#2A2B3F', backgroundColor: '#17182B', color: '#E5E7EB' }}
+                />
+              </div>
+
+              {/* Preferences */}
+              <div className="rounded-2xl p-4 border" style={{ backgroundColor: '#12132A', borderColor: 'rgba(255,255,255,0.06)' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium" style={{ color: '#FFFFFF' }}>Preferences</h4>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium mb-1" style={{ color: '#C9CBF0' }}>Interests</label>
+                    <div className="flex items-center gap-2">
+                      <TagIcon className="h-4 w-4" style={{ color: '#C9CBF0' }} />
+                      <input
+                        type="text"
+                        value={formData.interestsInput}
+                        onChange={(e) => setFormData({ ...formData, interestsInput: e.target.value })}
+                        placeholder="e.g., books, yoga, cooking"
+                        className="flex-1 rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                        style={{ borderColor: '#2A2B3F', backgroundColor: '#17182B', color: '#E5E7EB' }}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium mb-1" style={{ color: '#C9CBF0' }}>Min Budget (₺)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={formData.budgetMin}
+                        onChange={(e) => setFormData({ ...formData, budgetMin: e.target.value })}
+                        className="w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                        style={{ borderColor: '#2A2B3F', backgroundColor: '#17182B', color: '#E5E7EB' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1" style={{ color: '#C9CBF0' }}>Max Budget (₺)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={formData.budgetMax}
+                        onChange={(e) => setFormData({ ...formData, budgetMax: e.target.value })}
+                        className="w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                        style={{ borderColor: '#2A2B3F', backgroundColor: '#17182B', color: '#E5E7EB' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes / AI Suggestions */}
+              <div className="rounded-2xl p-4 border" style={{ backgroundColor: '#12132A', borderColor: 'rgba(255,255,255,0.06)' }}>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium" style={{ color: '#FFFFFF' }}>Notes / AI Suggestions</h4>
+                  <button type="button" disabled className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-white opacity-60 cursor-not-allowed" style={{ backgroundColor: 'var(--gm-secondary)' }}>
+                    <Sparkles className="h-4 w-4" /> Generate (save first)
+                  </button>
+                </div>
+                <textarea
+                  rows={3}
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Quick notes about preferences, ideas, or constraints..."
+                  className="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2"
+                  style={{ borderColor: '#2A2B3F', backgroundColor: '#17182B', color: '#E5E7EB' }}
+                />
+              </div>
+
+              {/* Events (initial) */}
+              <div className="rounded-2xl p-4 border" style={{ backgroundColor: '#12132A', borderColor: 'rgba(255,255,255,0.06)' }}>
+                <div className="mb-3">
+                  <h4 className="text-sm font-medium" style={{ color: '#FFFFFF' }}>Events</h4>
+                  <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.7)' }}>Add a few recent events for this persona (optional)</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={evTitle}
+                    onChange={(e) => setEvTitle(e.target.value)}
+                    placeholder="Title"
+                    className="md:col-span-2 rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                    style={{ borderColor: '#2A2B3F', backgroundColor: '#17182B', color: '#E5E7EB' }}
+                  />
+                  <input
+                    type="date"
+                    value={evDate}
+                    onChange={(e) => setEvDate(e.target.value)}
+                    className="md:col-span-1 rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                    style={{ borderColor: '#2A2B3F', backgroundColor: '#17182B', color: '#E5E7EB' }}
+                  />
+                  <input
+                    type="text"
+                    value={evDetails}
+                    onChange={(e) => setEvDetails(e.target.value)}
+                    placeholder="Details"
+                    className="md:col-span-1 rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                    style={{ borderColor: '#2A2B3F', backgroundColor: '#17182B', color: '#E5E7EB' }}
+                  />
+                  <button type="button" onClick={addEventDraft} className="md:col-span-1 rounded-xl text-sm text-white px-3 py-2 hover:opacity-95" style={{ backgroundColor: 'var(--gm-primary)' }}>
+                    Add
+                  </button>
+                </div>
+                {eventsDraft.length > 0 && (
+                  <ul className="space-y-2">
+                    {eventsDraft.map((ev, idx) => (
+                      <li key={idx} className="flex items-center justify-between rounded-xl border px-3 py-2" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                        <div className="text-xs" style={{ color: '#C9CBF0' }}>
+                          <span className="font-medium" style={{ color: '#FFFFFF' }}>{ev.title}</span>
+                          {ev.occurred_at ? ` · ${ev.occurred_at}` : ''}
+                          {ev.details ? ` · ${ev.details}` : ''}
+                        </div>
+                        <button type="button" onClick={() => removeEventDraft(idx)} className="text-xs" style={{ color: '#ff9eb8' }}>Remove</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="px-4 py-2 rounded-full text-sm"
+                style={{ color: '#E5E7EB', backgroundColor: 'rgba(255,255,255,0.06)' }}
               >
-                İptal
+                Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                className="px-4 py-2 rounded-full text-sm text-white disabled:opacity-60"
+                style={{ backgroundColor: 'var(--gm-primary)' }}
               >
-                {loading ? 'Oluşturuluyor...' : 'Persona Oluştur'}
+                {loading ? 'Saving…' : 'Save Persona'}
               </button>
             </div>
           </form>
@@ -228,22 +538,6 @@ const Dashboard: React.FC = () => {
       setLoading(false);
     }
   };
-
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  const formatBirthDate = (dateString: string) => {
-    if (!dateString) return 'Doğum tarihi yok';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('tr-TR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    } catch {
-      return 'Geçersiz tarih';
-    }
-  };
-  /* eslint-enable @typescript-eslint/no-unused-vars */
 
   // Safely compute budget range text across personas where budget fields may be missing
   const getBudgetRangeText = (items: Persona[]) => {
