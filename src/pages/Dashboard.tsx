@@ -3,24 +3,15 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context";
 import { api } from "../lib";
 import type { Persona } from "../lib/types";
-import { Plus, X, Upload, Tag as TagIcon, Sparkles, User } from "lucide-react";
+import { Plus, X, Tag as TagIcon } from "lucide-react";
+import { PersonalityTraitsSelector } from "../components/PersonalityTraitsSelector";
 
-// Add Persona Modal Component
 // Add Persona Modal Component
 const AddPersonaModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   onPersonaAdded: () => void;
 }> = ({ isOpen, onClose, onPersonaAdded }) => {
-  const traitOptions = [
-    "Creative",
-    "Analytical",
-    "Spontaneous",
-    "Empathetic",
-    "Pragmatic",
-    "Optimistic",
-  ];
-
   const [formData, setFormData] = useState({
     name: "",
     role: "",
@@ -36,20 +27,14 @@ const AddPersonaModal: React.FC<{
   });
 
   const [selectedTraits, setSelectedTraits] = useState<string[]>([]);
-  const [customTrait, setCustomTrait] = useState("");
-  const [, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string>("");
-
-  type NewEvent = { title: string; details?: string; occurred_at?: string };
-  const [eventsDraft, setEventsDraft] = useState<NewEvent[]>([]);
-  const [evTitle, setEvTitle] = useState("");
-  const [evDetails, setEvDetails] = useState("");
-  const [evDate, setEvDate] = useState("");
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  type StepKey = "profile" | "traits" | "preferences" | "notes" | "events";
+  const handleTraitsChange = (traits: string[]) => {
+    setSelectedTraits(traits);
+  };
+
+  type StepKey = "profile" | "traits" | "preferences" | "notes";
   const [activeStep, setActiveStep] = useState<StepKey>("profile");
 
   const steps = useMemo(
@@ -57,8 +42,7 @@ const AddPersonaModal: React.FC<{
       { key: "profile" as StepKey, label: "Profil", icon: "👤" },
       { key: "traits" as StepKey, label: "Özellikler", icon: "🎭" },
       { key: "preferences" as StepKey, label: "Tercihler", icon: "🎯" },
-      { key: "notes" as StepKey, label: "Notlar & Yapay Zeka", icon: "📝" },
-      { key: "events" as StepKey, label: "Etkinlikler", icon: "📅" },
+      { key: "notes" as StepKey, label: "Ek Notlar", icon: "📝" },
     ],
     []
   );
@@ -117,57 +101,13 @@ const AddPersonaModal: React.FC<{
       notes: "",
     });
     setSelectedTraits([]);
-    setCustomTrait("");
-    setAvatarFile(null);
-    setAvatarPreview("");
-    setEventsDraft([]);
-    setEvTitle("");
-    setEvDetails("");
-    setEvDate("");
     setActiveStep("profile");
-  };
-
-  const addCustomTrait = () => {
-    const t = customTrait.trim();
-    if (!t) return;
-    if (!selectedTraits.includes(t)) {
-      setSelectedTraits((s) => [...s, t]);
-    }
-    setCustomTrait("");
   };
 
   const toggleTrait = (t: string) => {
     setSelectedTraits((s) =>
       s.includes(t) ? s.filter((x) => x !== t) : [...s, t]
     );
-  };
-
-  const addEventDraft = () => {
-    if (!evTitle.trim()) return;
-    setEventsDraft((d) => [
-      ...d,
-      {
-        title: evTitle.trim(),
-        details: evDetails.trim() || undefined,
-        occurred_at: evDate || undefined,
-      },
-    ]);
-    setEvTitle("");
-    setEvDetails("");
-    setEvDate("");
-  };
-
-  const removeEventDraft = (idx: number) => {
-    setEventsDraft((d) => d.filter((_, i) => i !== idx));
-  };
-
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setAvatarFile(file);
-      const previewUrl = URL.createObjectURL(file);
-      setAvatarPreview(previewUrl);
-    }
   };
 
   const toArray = (value: string) =>
@@ -216,13 +156,6 @@ const AddPersonaModal: React.FC<{
         setError(error.message || "Persona oluşturulamadı");
         setLoading(false);
         return;
-      }
-
-      if ((created as any)?.id && eventsDraft.length) {
-        const pid = (created as any).id as string;
-        for (const ev of eventsDraft) {
-          await api.events.create(pid, ev);
-        }
       }
 
       onPersonaAdded();
@@ -408,7 +341,9 @@ const AddPersonaModal: React.FC<{
                     <input
                       type="date"
                       value={formData.birthDate}
-                      onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, birthDate: e.target.value })
+                      }
                       className={inputClass}
                       style={inputStyle}
                     />
@@ -459,118 +394,28 @@ const AddPersonaModal: React.FC<{
             {/* Step 2: Traits */}
             {activeStep === "traits" && (
               <div className="space-y-6">
-                <div>
-                  <label
-                    className="block text-sm font-medium mb-3"
-                    style={{ color: colors.text.secondary }}
+                <div className="flex items-center justify-between">
+                  <h4
+                    className="text-lg font-semibold"
+                    style={{ color: colors.text.primary }}
                   >
                     Kişilik Özellikleri
-                  </label>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {traitOptions.map((trait) => (
-                      <button
-                        key={trait}
-                        type="button"
-                        onClick={() => toggleTrait(trait)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                          selectedTraits.includes(trait)
-                            ? "text-white shadow-lg transform scale-105"
-                            : "text-white opacity-80 hover:opacity-100"
-                        }`}
-                        style={{
-                          backgroundColor: selectedTraits.includes(trait)
-                            ? colors.primary
-                            : "rgba(255,255,255,0.1)",
-                          border: selectedTraits.includes(trait)
-                            ? `1px solid ${colors.primary}`
-                            : "1px solid rgba(255,255,255,0.2)",
-                        }}
-                      >
-                        {trait}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <input
-                      value={customTrait}
-                      onChange={(e) => setCustomTrait(e.target.value)}
-                      placeholder="Özel özellik ekle..."
-                      className="flex-1 rounded-xl border px-4 py-2 text-sm"
-                      style={inputStyle}
-                    />
-                    <button
-                      type="button"
-                      onClick={addCustomTrait}
-                      className={buttonBase}
-                      style={{
-                        backgroundColor: colors.secondary,
-                        color: "white",
-                      }}
-                    >
-                      Ekle
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    className="block text-sm font-medium mb-3"
-                    style={{ color: colors.text.secondary }}
+                  </h4>
+                  <span
+                    className="text-xs px-2 py-1 rounded-full"
+                    style={{
+                      backgroundColor: "rgba(255,255,255,0.1)",
+                      color: colors.text.muted,
+                    }}
                   >
-                    Avatar Görseli
-                  </label>
-                  <div className="flex items-center gap-6">
-                    <div
-                      className="w-20 h-20 rounded-2xl border-2 border-dashed flex items-center justify-center overflow-hidden"
-                      style={{
-                        borderColor: colors.border,
-                        background: colors.gradient.card,
-                      }}
-                    >
-                      {avatarPreview ? (
-                        <img
-                          src={avatarPreview}
-                          alt="Avatar preview"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <User
-                          className="h-8 w-8"
-                          style={{ color: colors.text.muted }}
-                        />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <label className="block">
-                        <div
-                          className="border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all hover:border-purple-400"
-                          style={{
-                            borderColor: colors.border,
-                            backgroundColor: colors.surface,
-                          }}
-                        >
-                          <Upload
-                            className="h-6 w-6 mx-auto mb-2"
-                            style={{ color: colors.text.muted }}
-                          />
-                          <span
-                            className="text-sm"
-                            style={{ color: colors.text.secondary }}
-                          >
-                            Yüklemek için tıklayın veya sürükleyip bırakın
-                          </span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleAvatarChange}
-                            className="hidden"
-                          />
-                        </div>
-                      </label>
-                    </div>
-                  </div>
+                    {selectedTraits.length} seçildi
+                  </span>
                 </div>
+
+                <PersonalityTraitsSelector
+                  selectedTraits={selectedTraits}
+                  onTraitsChange={handleTraitsChange}
+                />
               </div>
             )}
 
@@ -664,15 +509,6 @@ const AddPersonaModal: React.FC<{
                   >
                     Ek Detaylar
                   </h4>
-                  <button
-                    type="button"
-                    disabled
-                    className={`${buttonBase} inline-flex items-center gap-2 opacity-60 cursor-not-allowed`}
-                    style={{ backgroundColor: colors.primary, color: "white" }}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Yapay Zeka ile Oluştur
-                  </button>
                 </div>
 
                 <div>
@@ -733,101 +569,6 @@ const AddPersonaModal: React.FC<{
                     className={inputClass}
                     style={inputStyle}
                   />
-                </div>
-              </div>
-            )}
-
-            {/* Step 5: Events */}
-            {activeStep === "events" && (
-              <div className="space-y-6">
-                <div>
-                  <h4
-                    className="text-lg font-semibold mb-2"
-                    style={{ color: colors.text.primary }}
-                  >
-                    Yaşam Olayları Zaman Çizelgesi
-                  </h4>
-                  <p
-                    className="text-sm mb-4"
-                    style={{ color: colors.text.muted }}
-                  >
-                    Bu personayı şekillendiren önemli olayları ekleyin
-                    (opsiyonel)
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                    <input
-                      type="text"
-                      value={evTitle}
-                      onChange={(e) => setEvTitle(e.target.value)}
-                      placeholder="Olay başlığı"
-                      className="md:col-span-5 rounded-xl border px-4 py-3 text-sm"
-                      style={inputStyle}
-                    />
-                    <input
-                      type="date"
-                      value={evDate}
-                      onChange={(e) => setEvDate(e.target.value)}
-                      className="md:col-span-3 rounded-xl border px-4 py-3 text-sm"
-                      style={inputStyle}
-                    />
-                    <input
-                      type="text"
-                      value={evDetails}
-                      onChange={(e) => setEvDetails(e.target.value)}
-                      placeholder="Ayrıntılar"
-                      className="md:col-span-3 rounded-xl border px-4 py-3 text-sm"
-                      style={inputStyle}
-                    />
-                    <button
-                      type="button"
-                      onClick={addEventDraft}
-                      className="md:col-span-1 rounded-xl text-sm font-medium text-white px-4 py-3 hover:opacity-95 transition-opacity"
-                      style={{ backgroundColor: colors.primary }}
-                    >
-                      Ekle
-                    </button>
-                  </div>
-
-                  {eventsDraft.length > 0 && (
-                    <div className="space-y-3">
-                      {eventsDraft.map((event, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-4 rounded-xl border"
-                          style={{
-                            borderColor: "rgba(255,255,255,0.1)",
-                            backgroundColor: colors.surfaceLight,
-                          }}
-                        >
-                          <div>
-                            <div
-                              className="font-medium text-sm"
-                              style={{ color: colors.text.primary }}
-                            >
-                              {event.title}
-                            </div>
-                            <div
-                              className="text-xs mt-1"
-                              style={{ color: colors.text.muted }}
-                            >
-                              {event.occurred_at && `${event.occurred_at} • `}
-                              {event.details}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeEventDraft(index)}
-                            className="text-red-400 hover:text-red-300 transition-colors"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             )}
