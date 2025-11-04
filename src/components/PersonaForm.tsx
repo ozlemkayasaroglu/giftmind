@@ -5,6 +5,13 @@ export interface PersonaFormValues {
   birthDate: string; // YYYY-MM-DD
   interests: string[];
   notes: string;
+  // New optional fields
+  role?: string;
+  goals?: string;
+  challenges?: string;
+  behavioralInsights?: string;
+  budgetMin?: number;
+  budgetMax?: number;
 }
 
 export interface PersonaFormProps {
@@ -28,6 +35,17 @@ const PersonaForm: React.FC<PersonaFormProps> = ({ onSubmit, initialData, submit
   const [birthDate, setBirthDate] = useState<string>(initialData?.birthDate ?? '');
   const [interestsInput, setInterestsInput] = useState<string>(toCommaSeparated(initialData?.interests));
   const [notes, setNotes] = useState<string>(initialData?.notes ?? '');
+  // New fields
+  const [role, setRole] = useState<string>(initialData?.role ?? '');
+  const [goals, setGoals] = useState<string>(initialData?.goals ?? '');
+  const [challenges, setChallenges] = useState<string>(initialData?.challenges ?? '');
+  const [behavioralInsights, setBehavioralInsights] = useState<string>(initialData?.behavioralInsights ?? '');
+  const [budgetMinStr, setBudgetMinStr] = useState<string>(
+    typeof initialData?.budgetMin === 'number' ? String(initialData?.budgetMin) : ''
+  );
+  const [budgetMaxStr, setBudgetMaxStr] = useState<string>(
+    typeof initialData?.budgetMax === 'number' ? String(initialData?.budgetMax) : ''
+  );
 
   const [active, setActive] = useState<StepKey>('basic');
   const steps = useMemo(() => (
@@ -49,6 +67,12 @@ const PersonaForm: React.FC<PersonaFormProps> = ({ onSubmit, initialData, submit
     setBirthDate(initialData.birthDate ?? '');
     setInterestsInput(toCommaSeparated(initialData.interests));
     setNotes(initialData.notes ?? '');
+    setRole(initialData.role ?? '');
+    setGoals(initialData.goals ?? '');
+    setChallenges(initialData.challenges ?? '');
+    setBehavioralInsights(initialData.behavioralInsights ?? '');
+    setBudgetMinStr(typeof (initialData as any).budgetMin === 'number' ? String((initialData as any).budgetMin) : '');
+    setBudgetMaxStr(typeof (initialData as any).budgetMax === 'number' ? String((initialData as any).budgetMax) : '');
   }, [initialData]);
 
   const next = () => {
@@ -69,11 +93,20 @@ const PersonaForm: React.FC<PersonaFormProps> = ({ onSubmit, initialData, submit
     if (e) e.preventDefault();
     setError(null);
 
+    const parsedBudgetMin = Number.isFinite(Number(budgetMinStr)) ? Number(budgetMinStr) : undefined;
+    const parsedBudgetMax = Number.isFinite(Number(budgetMaxStr)) ? Number(budgetMaxStr) : undefined;
+
     const values: PersonaFormValues = {
       name: name.trim(),
       birthDate: birthDate || '',
       interests: toArray(interestsInput),
       notes: notes.trim(),
+      role: role || undefined,
+      goals: goals || undefined,
+      challenges: challenges || undefined,
+      behavioralInsights: behavioralInsights || undefined,
+      budgetMin: parsedBudgetMin,
+      budgetMax: parsedBudgetMax,
     };
 
     if (!values.name) {
@@ -162,6 +195,21 @@ const PersonaForm: React.FC<PersonaFormProps> = ({ onSubmit, initialData, submit
               style={inputStyle}
             />
           </div>
+
+          <div className="space-y-1">
+            <label htmlFor="persona-role" className="block text-sm font-medium" style={{ color: '#C9CBF0' }}>
+              Rol / Meslek
+            </label>
+            <input
+              id="persona-role"
+              type="text"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              placeholder="örn. Kreatif Direktör"
+              className={inputClass}
+              style={inputStyle}
+            />
+          </div>
         </div>
       )}
 
@@ -181,14 +229,90 @@ const PersonaForm: React.FC<PersonaFormProps> = ({ onSubmit, initialData, submit
               style={inputStyle}
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label htmlFor="persona-budgetMin" className="block text-sm font-medium" style={{ color: '#C9CBF0' }}>
+                Minimum Bütçe
+              </label>
+              <input
+                id="persona-budgetMin"
+                type="number"
+                min={0}
+                value={budgetMinStr}
+                onChange={(e) => setBudgetMinStr(e.target.value)}
+                className={inputClass}
+                style={inputStyle}
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="persona-budgetMax" className="block text-sm font-medium" style={{ color: '#C9CBF0' }}>
+                Maksimum Bütçe
+              </label>
+              <input
+                id="persona-budgetMax"
+                type="number"
+                min={0}
+                value={budgetMaxStr}
+                onChange={(e) => setBudgetMaxStr(e.target.value)}
+                className={inputClass}
+                style={inputStyle}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label htmlFor="persona-behavioral" className="block text-sm font-medium" style={{ color: '#C9CBF0' }}>
+              Davranışsal İçgörüler
+            </label>
+            <textarea
+              id="persona-behavioral"
+              value={behavioralInsights}
+              onChange={(e) => setBehavioralInsights(e.target.value)}
+              rows={4}
+              placeholder="Alışkanlıklar, motivasyonlar, satın alma davranışları…"
+              className={`${inputClass} resize-y`}
+              style={inputStyle}
+            />
+          </div>
         </div>
       )}
 
       {active === 'overview' && (
         <div className="space-y-4">
           <div className="space-y-1">
+            <label htmlFor="persona-goals" className="block text-sm font-medium" style={{ color: '#C9CBF0' }}>
+              Hedefler
+            </label>
+            <textarea
+              id="persona-goals"
+              value={goals}
+              onChange={(e) => setGoals(e.target.value)}
+              rows={3}
+              placeholder="Bu persona ne başarmak istiyor?"
+              className={`${inputClass} resize-y`}
+              style={inputStyle}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label htmlFor="persona-challenges" className="block text-sm font-medium" style={{ color: '#C9CBF0' }}>
+              Zorluklar
+            </label>
+            <textarea
+              id="persona-challenges"
+              value={challenges}
+              onChange={(e) => setChallenges(e.target.value)}
+              rows={3}
+              placeholder="Karşılaştığı zorluklar neler?"
+              className={`${inputClass} resize-y`}
+              style={inputStyle}
+            />
+          </div>
+
+          <div className="space-y-1">
             <label htmlFor="persona-description" className="block text-sm font-medium" style={{ color: '#C9CBF0' }}>
-              Açıklama
+              Açıklama / Notlar
             </label>
             <textarea
               id="persona-description"

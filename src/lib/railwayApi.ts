@@ -33,6 +33,8 @@ interface PersonaCamel {
   role?: string;
   goal?: string;
   challenge?: string;
+  goals?: string; // compat
+  challenges?: string; // compat
   birthDate?: string;
   interests?: string[];
   personalityTraits?: string[];
@@ -43,6 +45,7 @@ interface PersonaCamel {
   budgetMax?: number;
   behavioralInsights?: string;
   notes?: string;
+  notesText?: string; // compat
   createdAt?: string;
   updatedAt?: string;
   [key: string]: any;
@@ -56,6 +59,8 @@ interface PersonaSnake {
   role?: string;
   goal?: string;
   challenge?: string;
+  goals?: string;
+  challenges?: string;
   birth_date?: string;
   interests?: string[];
   personality_traits?: string[];
@@ -66,6 +71,7 @@ interface PersonaSnake {
   budget_max?: number;
   behavioral_insights?: string;
   notes?: string;
+  notes_text?: string;
   created_at?: string;
   updated_at?: string;
   [key: string]: any;
@@ -104,7 +110,7 @@ interface PersonaEventCamel {
   userId?: string;
   title: string;
   details?: string;
-  category: string;
+  category?: string;
   type?: string;
   tags?: string[];
   occurredAt?: string;
@@ -112,16 +118,79 @@ interface PersonaEventCamel {
   updatedAt?: string;
 }
 
+// Convert camelCase persona into snake_case for API/DB
+const camelToSnakePersona = (p: Partial<PersonaCamel>): PersonaSnake => ({
+  id: p.id,
+  user_id: p.userId ?? (p as any).user_id,
+  name: p.name || (p as any).name || '',
+  description: p.description ?? (p as any).description,
+  role: p.role ?? (p as any).role,
+  goals: (p as any).goals ?? p.goal,
+  challenges: (p as any).challenges ?? p.challenge,
+  birth_date: p.birthDate ?? (p as any).birth_date,
+  interests: p.interests ?? (p as any).interests,
+  personality_traits: p.personalityTraits ?? (p as any).personality_traits,
+  interests_raw: p.interestsRaw ?? (p as any).interests_raw,
+  age_min: p.ageMin ?? (p as any).age_min,
+  age_max: p.ageMax ?? (p as any).age_max,
+  budget_min: p.budgetMin ?? (p as any).budget_min,
+  budget_max: p.budgetMax ?? (p as any).budget_max,
+  behavioral_insights: p.behavioralInsights ?? (p as any).behavioral_insights ?? (p as any).insights,
+  notes_text: p.notesText ?? (p as any).notes_text ?? p.notes,
+  created_at: p.createdAt ?? (p as any).created_at,
+  updated_at: p.updatedAt ?? (p as any).updated_at,
+});
+
+// Convert snake_case event to camelCase for UI
+const snakeToCamelEvent = (e: PersonaEventSnake): PersonaEventCamel => {
+  const out: PersonaEventCamel = {
+    id: e.id,
+    personaId: e.persona_id,
+    userId: e.user_id,
+    title: e.title,
+  };
+  if (e.details !== undefined) out.details = e.details;
+  if (e.category !== undefined) out.category = e.category as string;
+  if (e.type !== undefined) out.type = e.type as string;
+  if (e.tags !== undefined) out.tags = e.tags;
+  if (e.occurred_at !== undefined) out.occurredAt = e.occurred_at;
+  if (e.created_at !== undefined) out.createdAt = e.created_at;
+  if (e.updated_at !== undefined) out.updatedAt = e.updated_at;
+  return out;
+};
+
+const normalizeNotesToString = (notes: any, notesText?: any): string | undefined => {
+  if (typeof notesText === 'string') return notesText;
+  if (typeof notes === 'string') {
+    // Handle JSON-like empty array string
+    if (notes.trim() === '[]' || notes.trim() === '[\"\"]') return undefined;
+    return notes;
+  }
+  if (Array.isArray(notes)) {
+    const strings = notes.filter((x) => typeof x === 'string') as string[];
+    if (!strings.length) return undefined;
+    const joined = strings.join('\n');
+    if (joined.trim() === '[]') return undefined;
+    return joined;
+  }
+  return undefined;
+};
+
 const snakeToCamelPersona = (p: any): PersonaCamel => {
   if (!p || typeof p !== 'object') return p;
   return {
+    // Spread first so mapped fields below always win
+    ...p,
     id: p.id,
     userId: p.user_id,
     name: p.name,
     description: p.description,
     role: p.role,
-    goal: p.goal,
-    challenge: p.challenge,
+    // Read from both variants; prefer pluralized columns
+    goal: p.goals ?? p.goal,
+    goals: p.goals ?? p.goal,
+    challenge: p.challenges ?? p.challenge,
+    challenges: p.challenges ?? p.challenge,
     birthDate: p.birth_date || p.birthDate,
     interests: p.interests,
     personalityTraits: p.personality_traits || p.personalityTraits,
@@ -131,50 +200,33 @@ const snakeToCamelPersona = (p: any): PersonaCamel => {
     budgetMin: p.budget_min ?? p.budgetMin,
     budgetMax: p.budget_max ?? p.budgetMax,
     behavioralInsights: p.behavioral_insights ?? p.behavioralInsights ?? p.insights,
-    notes: p.notes,
+    // Prefer notes_text; fallback to notes, normalize arrays like ["[]"]
+    notes: normalizeNotesToString(p.notes, p.notes_text),
+    notesText: p.notes_text ?? normalizeNotesToString(p.notes, p.notes_text),
     createdAt: p.created_at ?? p.createdAt,
     updatedAt: p.updated_at ?? p.updatedAt,
-    ...p,
   };
 };
 
-const camelToSnakePersona = (p: Partial<PersonaCamel>): PersonaSnake => ({
-  id: p.id,
-  user_id: p.userId,
-  name: p.name || '',
-  description: p.description,
-  role: p.role,
-  goal: p.goal,
-  challenge: p.challenge,
-  birth_date: p.birthDate,
-  interests: p.interests,
-  personality_traits: p.personalityTraits,
-  interests_raw: (p as any).interestsRaw ?? (p as any).interests_raw,
-  age_min: p.ageMin,
-  age_max: p.ageMax,
-  budget_min: p.budgetMin,
-  budget_max: p.budgetMax,
-  behavioral_insights: p.behavioralInsights ?? (p as any).insights,
-  notes: p.notes,
-  created_at: p.createdAt,
-  updated_at: p.updatedAt,
-});
+// Helper to decide if a value is absent/nullish
+const isPresent = (v: any) => v !== undefined && v !== null && !(typeof v === 'string' && v.trim() === '');
 
-const snakeToCamelEvent = (e: PersonaEventSnake): PersonaEventCamel => {
-  const out: PersonaEventCamel = {
-    id: e.id,
-    personaId: e.persona_id,
-    userId: e.user_id,
-    title: e.title,
-  } as PersonaEventCamel;
-  if (e.details !== undefined) out.details = e.details;
-  if (e.category !== undefined) out.category = e.category as string;
-  if (e.type !== undefined) out.type = e.type as string;
-  if (e.tags !== undefined) out.tags = e.tags;
-  if (e.occurred_at !== undefined) out.occurredAt = e.occurred_at;
-  if (e.created_at !== undefined) out.createdAt = e.created_at;
-  if (e.updated_at !== undefined) out.updatedAt = e.updated_at;
-  return out;
+// Build patch from requested camel payload when server returns nulls
+const buildPatchFromRequested = (returned: PersonaCamel, requested: Partial<PersonaCamel>): Partial<PersonaCamel> => {
+  const patch: Partial<PersonaCamel> = {};
+  const keys: Array<keyof PersonaCamel> = [
+    'role', 'goals', 'goal', 'challenges', 'challenge', 'interests', 'personalityTraits',
+    'interestsRaw', 'ageMin', 'ageMax', 'budgetMin', 'budgetMax', 'behavioralInsights',
+    'notesText', 'description', 'birthDate'
+  ];
+  for (const k of keys) {
+    const retVal = (returned as any)[k];
+    const reqVal = (requested as any)[k];
+    if (!isPresent(retVal) && isPresent(reqVal)) {
+      (patch as any)[k] = reqVal;
+    }
+  }
+  return patch;
 };
 
 class RailwayAPI {
@@ -368,7 +420,29 @@ class RailwayAPI {
     const res = await this.apiCall<any>('POST', '/api/personas', payload);
     if (!res.success) return res as ApiResponse<PersonaCamel>;
     const raw = (res as any).data ?? (res as any).persona ?? res;
-    const data = snakeToCamelPersona(raw);
+    let data = snakeToCamelPersona(raw);
+
+    // Self-heal: if server responded with nulls, patch them using requested values
+    if (data?.id) {
+      const patch = buildPatchFromRequested(data, personaData);
+      if (Object.keys(patch).length > 0) {
+        try {
+          const updatePayload = camelToSnakePersona(patch);
+          const res2 = await this.apiCall<any>('PUT', `/api/personas/${data.id}`, updatePayload);
+          if (res2.success) {
+            const raw2 = (res2 as any).data ?? (res2 as any).persona ?? res2;
+            const fixed = snakeToCamelPersona(raw2);
+            data = { ...data, ...fixed };
+          } else {
+            // merge requested patch locally so UI doesn't see nulls
+            data = { ...data, ...patch } as PersonaCamel;
+          }
+        } catch {
+          data = { ...data, ...patch } as PersonaCamel;
+        }
+      }
+    }
+
     return { success: true, data };
   }
 
@@ -377,7 +451,26 @@ class RailwayAPI {
     const res = await this.apiCall<any>('PUT', `/api/personas/${id}`, payload);
     if (!res.success) return res as ApiResponse<PersonaCamel>;
     const raw = (res as any).data ?? (res as any).persona ?? res;
-    const data = snakeToCamelPersona(raw);
+    let data = snakeToCamelPersona(raw);
+
+    // Self-heal similarly after update
+    const patch = buildPatchFromRequested(data, personaData);
+    if (Object.keys(patch).length > 0) {
+      try {
+        const updatePayload = camelToSnakePersona(patch);
+        const res2 = await this.apiCall<any>('PUT', `/api/personas/${id}`, updatePayload);
+        if (res2.success) {
+          const raw2 = (res2 as any).data ?? (res2 as any).persona ?? res2;
+          const fixed = snakeToCamelPersona(raw2);
+          data = { ...data, ...fixed };
+        } else {
+          data = { ...data, ...patch } as PersonaCamel;
+        }
+      } catch {
+        data = { ...data, ...patch } as PersonaCamel;
+      }
+    }
+
     return { success: true, data };
   }
 

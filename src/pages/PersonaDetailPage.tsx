@@ -99,6 +99,8 @@ const normalizePersonaToForm = (p: Persona | null): PersonaFormValues => ({
     typeof p?.description === "string" && p.description
       ? p.description
       : normalizeNotes(p?.notes),
+  behavioralInsights:
+    (p as any)?.behavioralInsights || (p as any)?.behavioral_insights || (p as any)?.insights || "",
 });
 
 // Helper to compute age from ISO birth date (used in UI)
@@ -194,6 +196,7 @@ const PersonaDetailPage: React.FC = () => {
         notes: values.notes || undefined,
         interests: Array.isArray(values.interests) && values.interests.length ? values.interests : undefined,
         birthDate: values.birthDate || undefined,
+        behavioralInsights: values.behavioralInsights || undefined,
       };
 
       const { error } = await api.personas.update(id, payload);

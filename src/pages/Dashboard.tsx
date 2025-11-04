@@ -24,8 +24,7 @@ const AddPersonaModal: React.FC<{
   const [formData, setFormData] = useState({
     name: "",
     role: "",
-    ageMin: 25,
-    ageMax: 45,
+    birthDate: "",
     goals: "",
     challenges: "",
     description: "",
@@ -107,8 +106,7 @@ const AddPersonaModal: React.FC<{
     setFormData({
       name: "",
       role: "",
-      ageMin: 25,
-      ageMax: 45,
+      birthDate: "",
       goals: "",
       challenges: "",
       description: "",
@@ -194,18 +192,13 @@ const AddPersonaModal: React.FC<{
       const personaData: any = {
         name: formData.name,
         role: formData.role || undefined,
-        description: formData.description || undefined,
-        goal: formData.goals || undefined,
-        challenge: formData.challenges || undefined,
+        description: formData.description || formData.notes || undefined,
+        goals: formData.goals || undefined,
+        challenges: formData.challenges || undefined,
         interests: toArray(formData.interestsInput),
         personalityTraits: selectedTraits,
-        interestsRaw: (formData.interestsInput || '').trim() || undefined,
-        ageMin: Number.isFinite(Number(formData.ageMin))
-          ? Number(formData.ageMin)
-          : undefined,
-        ageMax: Number.isFinite(Number(formData.ageMax))
-          ? Number(formData.ageMax)
-          : undefined,
+        interestsRaw: (formData.interestsInput || "").trim() || undefined,
+        birthDate: formData.birthDate || undefined,
         budgetMin: Number.isFinite(Number(formData.budgetMin))
           ? Number(formData.budgetMin)
           : undefined,
@@ -213,8 +206,10 @@ const AddPersonaModal: React.FC<{
           ? Number(formData.budgetMax)
           : undefined,
         behavioralInsights: formData.behavioralInsights || undefined,
-        notes: formData.notes || undefined,
+        notesText: formData.notes || undefined,
       };
+
+      console.log(formData, personaData);
 
       const { data: created, error } = await api.personas.create(personaData);
       if (error) {
@@ -285,7 +280,8 @@ const AddPersonaModal: React.FC<{
                 Yeni Persona Oluştur
               </h3>
               <p className="mt-2 text-sm opacity-90 text-white">
-                Yapay zeka personanızı ayrıntılı özellikler ve tercihlerle tanımlayın
+                Yapay zeka personanızı ayrıntılı özellikler ve tercihlerle
+                tanımlayın
               </p>
             </div>
             <button
@@ -406,39 +402,16 @@ const AddPersonaModal: React.FC<{
                     className="block text-sm font-medium mb-3"
                     style={{ color: colors.text.secondary }}
                   >
-                    Yaş Aralığı: {formData.ageMin} - {formData.ageMax}
+                    Doğum Tarihi
                   </label>
-                  <div className="space-y-4">
-                    <div className="relative">
-                      <input
-                        type="range"
-                        min={18}
-                        max={80}
-                        value={formData.ageMin}
-                        onChange={(e) => {
-                          const value = Math.min(
-                            Number(e.target.value),
-                            formData.ageMax - 1
-                          );
-                          setFormData({ ...formData, ageMin: value });
-                        }}
-                        className="w-full accent-purple-500"
-                      />
-                      <input
-                        type="range"
-                        min={18}
-                        max={80}
-                        value={formData.ageMax}
-                        onChange={(e) => {
-                          const value = Math.max(
-                            Number(e.target.value),
-                            formData.ageMin + 1
-                          );
-                          setFormData({ ...formData, ageMax: value });
-                        }}
-                        className="w-full accent-green-500 -mt-3"
-                      />
-                    </div>
+                  <div>
+                    <input
+                      type="date"
+                      value={formData.birthDate}
+                      onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                      className={inputClass}
+                      style={inputStyle}
+                    />
                   </div>
                 </div>
 
@@ -630,7 +603,10 @@ const AddPersonaModal: React.FC<{
                       style={inputStyle}
                     />
                   </div>
-                  <p className="text-xs mt-2" style={{ color: colors.text.muted }}>
+                  <p
+                    className="text-xs mt-2"
+                    style={{ color: colors.text.muted }}
+                  >
                     Birden fazla ilgiyi virgülle ayırın
                   </p>
                 </div>
@@ -775,7 +751,8 @@ const AddPersonaModal: React.FC<{
                     className="text-sm mb-4"
                     style={{ color: colors.text.muted }}
                   >
-                    Bu personayı şekillendiren önemli olayları ekleyin (opsiyonel)
+                    Bu personayı şekillendiren önemli olayları ekleyin
+                    (opsiyonel)
                   </p>
                 </div>
 
@@ -1026,10 +1003,19 @@ const Dashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         {/* Hero */}
         <div className="mb-6 md:mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold" style={{ color: "#FFFFFF" }}>
-            Tekrar hoş geldin, {greetName} <span role="img" aria-label="wave">👋</span>
+          <h1
+            className="text-3xl md:text-4xl font-bold"
+            style={{ color: "#FFFFFF" }}
+          >
+            Tekrar hoş geldin, {greetName}{" "}
+            <span role="img" aria-label="wave">
+              👋
+            </span>
           </h1>
-          <p className="mt-2 text-sm md:text-base" style={{ color: "rgba(255,255,255,0.7)" }}>
+          <p
+            className="mt-2 text-sm md:text-base"
+            style={{ color: "rgba(255,255,255,0.7)" }}
+          >
             Yaratıcı personaların ve içgörülerin seni bekliyor.
           </p>
         </div>
@@ -1128,7 +1114,10 @@ const Dashboard: React.FC = () => {
 
         {/* Section header */}
         <div className="flex items-center justify-between mb-4 md:mb-6">
-          <h2 className="text-lg md:text-xl font-semibold" style={{ color: "#FFFFFF" }}>
+          <h2
+            className="text-lg md:text-xl font-semibold"
+            style={{ color: "#FFFFFF" }}
+          >
             Personaların
           </h2>
           <button
