@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 export interface PersonaFormValues {
   name: string;
@@ -21,11 +21,23 @@ const toArray = (value: string) =>
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 
-const PersonaForm: React.FC<PersonaFormProps> = ({ onSubmit, initialData, submitLabel = 'Save', className = '' }) => {
+type StepKey = 'basic' | 'preferences' | 'overview';
+
+const PersonaForm: React.FC<PersonaFormProps> = ({ onSubmit, initialData, submitLabel = 'Kaydet', className = '' }) => {
   const [name, setName] = useState<string>(initialData?.name ?? '');
   const [birthDate, setBirthDate] = useState<string>(initialData?.birthDate ?? '');
   const [interestsInput, setInterestsInput] = useState<string>(toCommaSeparated(initialData?.interests));
   const [notes, setNotes] = useState<string>(initialData?.notes ?? '');
+
+  const [active, setActive] = useState<StepKey>('basic');
+  const steps = useMemo(() => (
+    [
+      { key: 'basic' as StepKey, label: 'Temel Bilgiler' },
+      { key: 'preferences' as StepKey, label: 'Tercihler' },
+      { key: 'overview' as StepKey, label: 'Özet' },
+    ]
+  ), []);
+  const currentIndex = steps.findIndex(s => s.key === active);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,8 +51,22 @@ const PersonaForm: React.FC<PersonaFormProps> = ({ onSubmit, initialData, submit
     setNotes(initialData.notes ?? '');
   }, [initialData]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const next = () => {
+    setError(null);
+    if (active === 'basic' && !name.trim()) {
+      setError('İsim gerekli');
+      return;
+    }
+    if (currentIndex < steps.length - 1) setActive(steps[currentIndex + 1].key);
+  };
+
+  const prev = () => {
+    setError(null);
+    if (currentIndex > 0) setActive(steps[currentIndex - 1].key);
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setError(null);
 
     const values: PersonaFormValues = {
@@ -51,7 +77,8 @@ const PersonaForm: React.FC<PersonaFormProps> = ({ onSubmit, initialData, submit
     };
 
     if (!values.name) {
-      setError('Name is required');
+      setActive('basic');
+      setError('İsim gerekli');
       return;
     }
 
@@ -59,83 +86,156 @@ const PersonaForm: React.FC<PersonaFormProps> = ({ onSubmit, initialData, submit
       setSubmitting(true);
       await onSubmit(values);
     } catch (err: any) {
-      setError(err?.message || 'Failed to submit');
+      setError(err?.message || 'Gönderim başarısız');
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Common styles for dark inputs matching the app’s design
+  const inputClass = 'w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2';
+  const inputStyle: React.CSSProperties = {
+    borderColor: '#2A2B3F',
+    backgroundColor: '#17182B',
+    color: '#E5E7EB',
+  };
+
   return (
-    <form onSubmit={handleSubmit} className={`space-y-4 ${className}`}>
+    <form
+      onSubmit={handleSubmit}
+      className={`space-y-4 overflow-y-auto max-h-[70vh] pr-1 max-w-2xl w-full mx-auto ${className}`}
+      style={{ WebkitOverflowScrolling: 'touch' }}
+    >
+      {/* Step indicator (non-interactive) */}
+      <div className="mb-1 flex items-center justify-between">
+        <div className="text-xs text-white/70">Adım {currentIndex + 1} / {steps.length}</div>
+        <div className="flex items-center gap-2">
+          {steps.map((s, idx) => {
+            const reached = idx <= currentIndex;
+            return (
+              <span
+                key={s.key}
+                className="px-2 py-1 rounded-full border text-xs select-none"
+                style={{ borderColor: 'rgba(255,255,255,0.14)', backgroundColor: reached ? 'rgba(123,97,255,0.25)' : 'rgba(255,255,255,0.06)', color: reached ? '#fff' : 'rgba(255,255,255,0.6)' }}
+              >
+                {s.label}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
       {error && (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200" role="alert">
+        <div className="rounded-md p-3 text-sm border" style={{ backgroundColor: '#3b1d2a', color: '#ff9eb8', borderColor: 'rgba(255,158,186,0.3)' }} role="alert">
           {error}
         </div>
       )}
 
-      <div className="space-y-1">
-        <label htmlFor="persona-name" className="block text-sm font-medium text-gray-800">
-          Name
-        </label>
-        <input
-          id="persona-name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="e.g., Alex Doe"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-        />
-      </div>
+      {/* Step Panels */}
+      {active === 'basic' && (
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <label htmlFor="persona-name" className="block text-sm font-medium" style={{ color: '#C9CBF0' }}>
+              İsim
+            </label>
+            <input
+              id="persona-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="örn. Alex Doğan"
+              className={inputClass}
+              style={inputStyle}
+            />
+          </div>
 
-      <div className="space-y-1">
-        <label htmlFor="persona-birthDate" className="block text-sm font-medium text-gray-800">
-          Birth Date
-        </label>
-        <input
-          id="persona-birthDate"
-          type="date"
-          value={birthDate}
-          onChange={(e) => setBirthDate(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-        />
-      </div>
+          <div className="space-y-1">
+            <label htmlFor="persona-birthDate" className="block text-sm font-medium" style={{ color: '#C9CBF0' }}>
+              Doğum Tarihi
+            </label>
+            <input
+              id="persona-birthDate"
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              className={inputClass}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+      )}
 
-      <div className="space-y-1">
-        <label htmlFor="persona-interests" className="block text-sm font-medium text-gray-800">
-          Interests (comma-separated)
-        </label>
-        <input
-          id="persona-interests"
-          type="text"
-          value={interestsInput}
-          onChange={(e) => setInterestsInput(e.target.value)}
-          placeholder="e.g., books, yoga, cooking"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-        />
-      </div>
+      {active === 'preferences' && (
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <label htmlFor="persona-interests" className="block text-sm font-medium" style={{ color: '#C9CBF0' }}>
+              İlgi Alanları (virgülle ayırın)
+            </label>
+            <input
+              id="persona-interests"
+              type="text"
+              value={interestsInput}
+              onChange={(e) => setInterestsInput(e.target.value)}
+              placeholder="örn. kitaplar, yoga, yemek"
+              className={inputClass}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+      )}
 
-      <div className="space-y-1">
-        <label htmlFor="persona-description" className="block text-sm font-medium text-gray-800">
-          Description
-        </label>
-        <textarea
-          id="persona-description"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={4}
-          placeholder="Describe this persona..."
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-        />
-      </div>
+      {active === 'overview' && (
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <label htmlFor="persona-description" className="block text-sm font-medium" style={{ color: '#C9CBF0' }}>
+              Açıklama
+            </label>
+            <textarea
+              id="persona-description"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={5}
+              placeholder="Bu personayı tanımlayın..."
+              className={`${inputClass} resize-y`}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+      )}
 
-      <div className="pt-2">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
-        >
-          {submitting ? 'Saving…' : submitLabel}
-        </button>
+      {/* Controls */}
+      <div className="pt-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={prev}
+            disabled={currentIndex === 0}
+            className="px-3 py-2 rounded-full text-sm disabled:opacity-50"
+            style={{ color: '#E5E7EB', backgroundColor: 'rgba(255,255,255,0.06)' }}
+          >
+            Geri
+          </button>
+          {currentIndex < steps.length - 1 && (
+            <button
+              type="button"
+              onClick={next}
+              className="px-3 py-2 rounded-full text-sm text-white"
+              style={{ backgroundColor: 'var(--gm-primary)' }}
+            >
+              İleri
+            </button>
+          )}
+        </div>
+        {currentIndex === steps.length - 1 && (
+          <button
+            type="submit"
+            disabled={submitting}
+            className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+            style={{ backgroundColor: 'var(--gm_secondary, var(--gm-secondary, #23C9FF))' }}
+          >
+            {submitting ? 'Kaydediliyor…' : submitLabel}
+          </button>
+        )}
       </div>
     </form>
   );

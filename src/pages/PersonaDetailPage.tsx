@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../lib";
 import {
@@ -39,23 +39,16 @@ type Persona = {
 
 type PersonaEvent = {
   id: string;
-  persona_id: string;
+  personaId: string;
   title: string;
   details?: string;
   category?: string;
   type?: string;
   tags?: string[];
-  occurred_at?: string;
+  occurredAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
-
-const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string) ||
-  "https://giftmind-be-production.up.railway.app";
-
-const getAuthToken = () =>
-  localStorage.getItem("railway_token") ||
-  localStorage.getItem("authToken") ||
-  "";
 
 // Normalize interests from string | string[] | JSON-string -> string[]
 const normalizeInterests = (raw: unknown): string[] => {
@@ -154,13 +147,6 @@ const PersonaDetailPage: React.FC = () => {
     {}
   );
 
-  const authHeader = useMemo(() => {
-    const token = getAuthToken();
-    return token
-      ? { Authorization: `Bearer ${token}` }
-      : ({} as Record<string, string>);
-  }, []);
-
   const fetchPersona = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -202,37 +188,21 @@ const PersonaDetailPage: React.FC = () => {
     setError(null);
 
     try {
-      // Send snake_case for birth_date; keep interests array and notes string
-      const res = await fetch(`${API_BASE_URL}/api/personas/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeader,
-        } as HeadersInit,
-        body: JSON.stringify({
-          name: values.name,
-          description: values.notes,
-          notes: values.notes,
-          interests: values.interests,
-          birth_date: values.birthDate,
-        }),
-      });
+      const payload: any = {
+        name: values.name,
+        description: values.notes || undefined,
+        notes: values.notes || undefined,
+        interests: Array.isArray(values.interests) && values.interests.length ? values.interests : undefined,
+        birthDate: values.birthDate || undefined,
+      };
 
-      const body = await res.text();
-      const json = body ? JSON.parse(body) : {};
-      if (!res.ok) {
-        throw new Error(
-          json?.message ||
-            json?.error ||
-            `Failed to update persona (${res.status})`
-        );
-      }
+      const { error } = await api.personas.update(id, payload);
+      if (error) throw new Error(error.message || 'Failed to update persona');
 
-      // Re-fetch to get the server canonical record (from Supabase)
       await fetchPersona();
       setEditing(false);
     } catch (e: any) {
-      setError(e?.message || "Failed to update");
+      setError(e?.message || 'Failed to update');
     }
   };
 
@@ -387,7 +357,7 @@ const PersonaDetailPage: React.FC = () => {
       const payload: any = {
         title: editEventDraft.title?.trim(),
         details: editEventDraft.details?.trim() || undefined,
-        occurred_at: editEventDraft.occurred_at || undefined,
+        occurred_at: (editEventDraft as any).occurredAt || undefined,
       };
       const { error } = await api.events.update(editingEventId, payload);
       if (error) throw new Error(error.message || "Failed to update event");
@@ -784,9 +754,9 @@ const PersonaDetailPage: React.FC = () => {
                             />
                             <input
                               type="date"
-                              value={editEventDraft.occurred_at || ""}
+                              value={editEventDraft.occurredAt || ""}
                               onChange={(ev) =>
-                                setEditEventDraft((d) => ({ ...d, occurred_at: ev.target.value }))
+                                setEditEventDraft((d) => ({ ...d, occurredAt: ev.target.value }))
                               }
                               className="rounded-xl border px-2 py-1 text-sm"
                               style={{ borderColor: "#2A2B3F", backgroundColor: "#17182B", color: "#E5E7EB" }}
@@ -823,7 +793,7 @@ const PersonaDetailPage: React.FC = () => {
                               {e.title}
                             </div>
                             <div className="text-xs mt-1" style={{ color: "#C9CBF0" }}>
-                              {e.occurred_at || "—"}
+                              {e.occurredAt || "—"}
                               {e.category ? ` · ${e.category}` : ""}
                               {e.type ? ` · ${e.type}` : ""}
                             </div>

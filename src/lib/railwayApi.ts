@@ -25,26 +25,50 @@ interface User {
   updatedAt?: string;
 }
 
-interface Persona {
-  id: string;
+interface PersonaCamel {
+  id?: string;
+  userId?: string;
   name: string;
-  description: string;
-  age?: number;
-  gender?: string;
+  description?: string;
+  role?: string;
+  goal?: string;
+  challenge?: string;
+  birthDate?: string;
   interests?: string[];
-  personality_traits?: string[];
-  user_id: string;
-  created_at?: string;
-  updated_at?: string;
+  personalityTraits?: string[];
+  interestsRaw?: string;
+  ageMin?: number;
+  ageMax?: number;
+  budgetMin?: number;
+  budgetMax?: number;
+  behavioralInsights?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: any;
 }
 
-interface CreatePersonaData {
+interface PersonaSnake {
+  id?: string;
+  user_id?: string;
   name: string;
-  description: string;
-  age?: number;
-  gender?: string;
+  description?: string;
+  role?: string;
+  goal?: string;
+  challenge?: string;
+  birth_date?: string;
   interests?: string[];
   personality_traits?: string[];
+  interests_raw?: string;
+  age_min?: number;
+  age_max?: number;
+  budget_min?: number;
+  budget_max?: number;
+  behavioral_insights?: string;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: any;
 }
 
 interface Milestone {
@@ -60,10 +84,10 @@ interface Milestone {
   updated_at?: string;
 }
 
-interface PersonaEvent {
+interface PersonaEventSnake {
   id: string;
   persona_id: string;
-  user_id: string;
+  user_id?: string;
   title: string;
   details?: string;
   category?: string;
@@ -73,6 +97,85 @@ interface PersonaEvent {
   created_at?: string;
   updated_at?: string;
 }
+
+interface PersonaEventCamel {
+  id: string;
+  personaId: string;
+  userId?: string;
+  title: string;
+  details?: string;
+  category: string;
+  type?: string;
+  tags?: string[];
+  occurredAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+const snakeToCamelPersona = (p: any): PersonaCamel => {
+  if (!p || typeof p !== 'object') return p;
+  return {
+    id: p.id,
+    userId: p.user_id,
+    name: p.name,
+    description: p.description,
+    role: p.role,
+    goal: p.goal,
+    challenge: p.challenge,
+    birthDate: p.birth_date || p.birthDate,
+    interests: p.interests,
+    personalityTraits: p.personality_traits || p.personalityTraits,
+    interestsRaw: p.interests_raw ?? p.interestsRaw,
+    ageMin: p.age_min ?? p.ageMin,
+    ageMax: p.age_max ?? p.ageMax,
+    budgetMin: p.budget_min ?? p.budgetMin,
+    budgetMax: p.budget_max ?? p.budgetMax,
+    behavioralInsights: p.behavioral_insights ?? p.behavioralInsights ?? p.insights,
+    notes: p.notes,
+    createdAt: p.created_at ?? p.createdAt,
+    updatedAt: p.updated_at ?? p.updatedAt,
+    ...p,
+  };
+};
+
+const camelToSnakePersona = (p: Partial<PersonaCamel>): PersonaSnake => ({
+  id: p.id,
+  user_id: p.userId,
+  name: p.name || '',
+  description: p.description,
+  role: p.role,
+  goal: p.goal,
+  challenge: p.challenge,
+  birth_date: p.birthDate,
+  interests: p.interests,
+  personality_traits: p.personalityTraits,
+  interests_raw: (p as any).interestsRaw ?? (p as any).interests_raw,
+  age_min: p.ageMin,
+  age_max: p.ageMax,
+  budget_min: p.budgetMin,
+  budget_max: p.budgetMax,
+  behavioral_insights: p.behavioralInsights ?? (p as any).insights,
+  notes: p.notes,
+  created_at: p.createdAt,
+  updated_at: p.updatedAt,
+});
+
+const snakeToCamelEvent = (e: PersonaEventSnake): PersonaEventCamel => {
+  const out: PersonaEventCamel = {
+    id: e.id,
+    personaId: e.persona_id,
+    userId: e.user_id,
+    title: e.title,
+  } as PersonaEventCamel;
+  if (e.details !== undefined) out.details = e.details;
+  if (e.category !== undefined) out.category = e.category as string;
+  if (e.type !== undefined) out.type = e.type as string;
+  if (e.tags !== undefined) out.tags = e.tags;
+  if (e.occurred_at !== undefined) out.occurredAt = e.occurred_at;
+  if (e.created_at !== undefined) out.createdAt = e.created_at;
+  if (e.updated_at !== undefined) out.updatedAt = e.updated_at;
+  return out;
+};
 
 class RailwayAPI {
   private baseURL: string;
@@ -244,33 +347,37 @@ class RailwayAPI {
   }
 
   // Personas
-  async getPersonas(): Promise<ApiResponse<Persona[]>> {
+  async getPersonas(): Promise<ApiResponse<PersonaCamel[]>> {
     const res = await this.apiCall<any>('GET', '/api/personas');
-    if (!res.success) return res as ApiResponse<Persona[]>;
-    const data = (res as any).data ?? (res as any).personas ?? (res as any).items ?? [];
+    if (!res.success) return res as ApiResponse<PersonaCamel[]>;
+    const raw = (res as any).data ?? (res as any).personas ?? (res as any).items ?? [];
+    const data = Array.isArray(raw) ? raw.map(snakeToCamelPersona) : [];
     return { success: true, data };
   }
 
-  async getPersona(id: string): Promise<ApiResponse<Persona>> {
+  async getPersona(id: string): Promise<ApiResponse<PersonaCamel>> {
     const res = await this.apiCall<any>('GET', `/api/personas/${id}`);
-    if (!res.success) return res as ApiResponse<Persona>;
-    const data = (res as any).data ?? (res as any).persona ?? res;
+    if (!res.success) return res as ApiResponse<PersonaCamel>;
+    const raw = (res as any).data ?? (res as any).persona ?? res;
+    const data = snakeToCamelPersona(raw);
     return { success: true, data };
   }
 
-  async createPersona(personaData: CreatePersonaData): Promise<ApiResponse<Persona>> {
-    console.log('🔐 Token (before create):', this.getToken() ? 'exists' : 'missing');
-    const res = await this.apiCall<any>('POST', '/api/personas', personaData);
-    console.log('✅ Create persona raw result:', res);
-    if (!res.success) return res as ApiResponse<Persona>;
-    const data = (res as any).data ?? (res as any).persona ?? res;
+  async createPersona(personaData: Partial<PersonaCamel>): Promise<ApiResponse<PersonaCamel>> {
+    const payload = camelToSnakePersona(personaData);
+    const res = await this.apiCall<any>('POST', '/api/personas', payload);
+    if (!res.success) return res as ApiResponse<PersonaCamel>;
+    const raw = (res as any).data ?? (res as any).persona ?? res;
+    const data = snakeToCamelPersona(raw);
     return { success: true, data };
   }
 
-  async updatePersona(id: string, personaData: Partial<CreatePersonaData>): Promise<ApiResponse<Persona>> {
-    const res = await this.apiCall<any>('PUT', `/api/personas/${id}`, personaData);
-    if (!res.success) return res as ApiResponse<Persona>;
-    const data = (res as any).data ?? (res as any).persona ?? res;
+  async updatePersona(id: string, personaData: Partial<PersonaCamel>): Promise<ApiResponse<PersonaCamel>> {
+    const payload = camelToSnakePersona(personaData);
+    const res = await this.apiCall<any>('PUT', `/api/personas/${id}`, payload);
+    if (!res.success) return res as ApiResponse<PersonaCamel>;
+    const raw = (res as any).data ?? (res as any).persona ?? res;
+    const data = snakeToCamelPersona(raw);
     return { success: true, data };
   }
 
@@ -278,9 +385,14 @@ class RailwayAPI {
     return await this.apiCall('DELETE', `/api/personas/${id}`);
   }
 
-  // Gift recommendations
-  async getGiftRecommendations(personaId: string): Promise<ApiResponse<any[]>> {
-    const res = await this.apiCall<any>('POST', `/api/gift/recommend`, { personaId });
+  // Gift recommendations (extended with context)
+  async getGiftRecommendations(personaId: string, context?: {
+    preferences?: string[];
+    behavioralInsights?: string;
+    events?: Array<Partial<PersonaEventCamel>>;
+  }): Promise<ApiResponse<any[]>> {
+    const body = { personaId, ...context };
+    const res = await this.apiCall<any>('POST', `/api/gift/recommend`, body);
     if (!res.success) return res as ApiResponse<any[]>;
     const data = (res as any).data ?? (res as any).suggestions ?? (res as any).recommendations ?? [];
     return { success: true, data };
@@ -312,10 +424,11 @@ class RailwayAPI {
   }
 
   // Events
-  async getPersonaEvents(personaId: string): Promise<ApiResponse<PersonaEvent[]>> {
+  async getPersonaEvents(personaId: string): Promise<ApiResponse<PersonaEventCamel[]>> {
     const res = await this.apiCall<any>('GET', `/api/personas/${personaId}/events`);
-    if (!res.success) return res as ApiResponse<PersonaEvent[]>;
-    const data = (res as any).data ?? (res as any).events ?? [];
+    if (!res.success) return res as ApiResponse<PersonaEventCamel[]>;
+    const raw = (res as any).data ?? (res as any).events ?? [];
+    const data = Array.isArray(raw) ? raw.map(snakeToCamelEvent) : [];
     return { success: true, data };
   }
 
@@ -326,10 +439,11 @@ class RailwayAPI {
     type?: string;
     tags?: string[];
     occurred_at?: string; // YYYY-MM-DD
-  }): Promise<ApiResponse<PersonaEvent>> {
+  }): Promise<ApiResponse<PersonaEventCamel>> {
     const res = await this.apiCall<any>('POST', `/api/personas/${personaId}/events`, payload);
-    if (!res.success) return res as ApiResponse<PersonaEvent>;
-    const data = (res as any).data ?? (res as any).event ?? res;
+    if (!res.success) return res as ApiResponse<PersonaEventCamel>;
+    const raw = (res as any).data ?? (res as any).event ?? res;
+    const data = snakeToCamelEvent(raw);
     return { success: true, data };
   }
 
@@ -340,10 +454,11 @@ class RailwayAPI {
     type?: string;
     tags?: string[];
     occurred_at?: string;
-  }>): Promise<ApiResponse<PersonaEvent>> {
+  }>): Promise<ApiResponse<PersonaEventCamel>> {
     const res = await this.apiCall<any>('PUT', `/api/events/${eventId}`, payload);
-    if (!res.success) return res as ApiResponse<PersonaEvent>;
-    const data = (res as any).data ?? (res as any).event ?? res;
+    if (!res.success) return res as ApiResponse<PersonaEventCamel>;
+    const raw = (res as any).data ?? (res as any).event ?? res;
+    const data = snakeToCamelEvent(raw);
     return { success: true, data };
   }
 
