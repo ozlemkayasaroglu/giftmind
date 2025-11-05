@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { personalityTraitsApi } from '../lib/api/personalityTraits';
-import { Check, X } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { personalityTraitsApi } from "../lib/api/personalityTraits";
+import { Check, X } from "lucide-react";
 
 interface TraitCategory {
   key: string;
@@ -9,7 +9,7 @@ interface TraitCategory {
   traits: string[];
 }
 
-type ViewMode = 'categories' | 'all';
+type ViewMode = "categories" | "all";
 
 interface PersonalityTraitsSelectorProps {
   selectedTraits: string[];
@@ -17,17 +17,15 @@ interface PersonalityTraitsSelectorProps {
   maxSelections?: number;
 }
 
-export const PersonalityTraitsSelector: React.FC<PersonalityTraitsSelectorProps> = ({
-  selectedTraits = [],
-  onTraitsChange,
-  maxSelections = 10,
-}) => {
+export const PersonalityTraitsSelector: React.FC<
+  PersonalityTraitsSelectorProps
+> = ({ selectedTraits = [], onTraitsChange, maxSelections = 10 }) => {
   const [categories, setCategories] = useState<TraitCategory[]>([]);
   const [allTraits, setAllTraits] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('categories');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>("categories");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const loadTraits = async () => {
@@ -37,12 +35,14 @@ export const PersonalityTraitsSelector: React.FC<PersonalityTraitsSelectorProps>
           personalityTraitsApi.getByCategory(),
           personalityTraitsApi.getAll(),
         ]);
-        
-        setCategories(categoriesRes.data);
-        setAllTraits(allTraitsRes.data);
+
+        setCategories(categoriesRes.data || []);
+        setAllTraits(allTraitsRes.data || []);
       } catch (err) {
-        console.error('Failed to load personality traits:', err);
-        setError('Kişilik özellikleri yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
+        console.error("Failed to load personality traits:", err);
+        setError(
+          "Kişilik özellikleri yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin."
+        );
       } finally {
         setLoading(false);
       }
@@ -63,14 +63,16 @@ export const PersonalityTraitsSelector: React.FC<PersonalityTraitsSelectorProps>
     onTraitsChange(selectedTraits.filter((t) => t !== trait));
   };
 
-  const filteredCategories = categories.map(category => ({
-    ...category,
-    traits: category.traits.filter(trait => 
-      trait.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  })).filter(category => category.traits.length > 0);
+  const filteredCategories = categories
+    .map((category) => ({
+      ...category,
+      traits: category.traits.filter((trait) =>
+        trait.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    }))
+    .filter((category) => category.traits.length > 0);
 
-  const filteredAllTraits = allTraits.filter(trait => 
+  const filteredAllTraits = allTraits.filter((trait) =>
     trait.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -105,22 +107,22 @@ export const PersonalityTraitsSelector: React.FC<PersonalityTraitsSelectorProps>
         <div className="flex space-x-2">
           <button
             type="button"
-            onClick={() => setViewMode('categories')}
+            onClick={() => setViewMode("categories")}
             className={`px-4 py-2 rounded-lg text-sm font-medium ${
-              viewMode === 'categories'
-                ? 'bg-purple-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              viewMode === "categories"
+                ? "bg-purple-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
           >
             Kategorilere Göre
           </button>
           <button
             type="button"
-            onClick={() => setViewMode('all')}
+            onClick={() => setViewMode("all")}
             className={`px-4 py-2 rounded-lg text-sm font-medium ${
-              viewMode === 'all'
-                ? 'bg-purple-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              viewMode === "all"
+                ? "bg-purple-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
           >
             Tüm Özellikler
@@ -154,14 +156,16 @@ export const PersonalityTraitsSelector: React.FC<PersonalityTraitsSelectorProps>
       )}
 
       <div className="space-y-6">
-        {viewMode === 'categories' ? (
+        {viewMode === "categories" ? (
           filteredCategories.length > 0 ? (
             filteredCategories.map((category) => (
               <div key={category.key} className="space-y-3">
                 <h3 className="text-lg font-semibold text-gray-800">
                   {category.category}
                 </h3>
-                <p className="text-sm text-gray-500 mb-2">{category.description}</p>
+                <p className="text-sm text-gray-500 mb-2">
+                  {category.description}
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {category.traits.map((trait) => (
                     <button
@@ -170,8 +174,8 @@ export const PersonalityTraitsSelector: React.FC<PersonalityTraitsSelectorProps>
                       onClick={() => toggleTrait(trait)}
                       className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                         selectedTraits.includes(trait)
-                          ? 'bg-purple-600 text-white shadow-md transform scale-105'
-                          : 'bg-white text-gray-700 border border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                          ? "bg-purple-600 text-white shadow-md transform scale-105"
+                          : "bg-white text-gray-700 border border-gray-200 hover:border-purple-300 hover:bg-purple-50"
                       }`}
                       disabled={
                         !selectedTraits.includes(trait) &&
@@ -181,7 +185,7 @@ export const PersonalityTraitsSelector: React.FC<PersonalityTraitsSelectorProps>
                         selectedTraits.length >= maxSelections &&
                         !selectedTraits.includes(trait)
                           ? `En fazla ${maxSelections} özellik seçebilirsiniz`
-                          : ''
+                          : ""
                       }
                     >
                       {trait}
@@ -207,8 +211,8 @@ export const PersonalityTraitsSelector: React.FC<PersonalityTraitsSelectorProps>
                 onClick={() => toggleTrait(trait)}
                 className={`w-full text-left px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   selectedTraits.includes(trait)
-                    ? 'bg-purple-600 text-white shadow-md'
-                    : 'bg-white text-gray-700 border border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                    ? "bg-purple-600 text-white shadow-md"
+                    : "bg-white text-gray-700 border border-gray-200 hover:border-purple-300 hover:bg-purple-50"
                 }`}
                 disabled={
                   !selectedTraits.includes(trait) &&
@@ -233,7 +237,8 @@ export const PersonalityTraitsSelector: React.FC<PersonalityTraitsSelectorProps>
 
       {selectedTraits.length > 0 && selectedTraits.length >= maxSelections && (
         <div className="mt-4 text-sm text-purple-700 bg-purple-50 p-3 rounded-lg">
-          Maksimum {maxSelections} adet kişilik özelliği seçebilirsiniz. Daha fazla eklemek için önce mevcut özelliklerden bazılarını kaldırın.
+          Maksimum {maxSelections} adet kişilik özelliği seçebilirsiniz. Daha
+          fazla eklemek için önce mevcut özelliklerden bazılarını kaldırın.
         </div>
       )}
     </div>

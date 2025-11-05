@@ -27,7 +27,7 @@ const Navbar: React.FC = () => {
           "linear-gradient(135deg,#0C0C1E 0%, #16163A 60%, #0C0C1E 100%)",
       }}
     >
-      <div className="  max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="p-10 h-16 flex items-center justify-between">
           {/* Logo */}
 

@@ -1,33 +1,28 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { api } from "../lib";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
+import type { PersonaFormValues } from "../components/PersonaForm";
 import {
+  User as UserIcon,
   Gift,
-  Trash,
-  PlusCircle,
-  Calendar,
-  Tag,
-  Pencil,
-  Check,
-  X,
-  ArrowLeft,
   Briefcase,
   Flag,
   AlertCircle,
-  User as UserIcon,
-  Sparkles,
+  Tag,
 } from "lucide-react";
-import Swal from "sweetalert2";
-import "sweetalert2/dist/sweetalert2.min.css";
-import PersonaForm, { type PersonaFormValues } from "../components/PersonaForm";
+import GiftSuggestions from "../components/GiftSuggestions";
+import PersonaForm from "../components/PersonaForm";
+
 // Local Persona type to map common fields
 type Persona = {
   id: string;
   name: string;
   description?: string;
-  interests?: string[] | string;
-  // Notes can come as string, string[] | array of objects from Supabase/BE
-  notes?: string | string[] | Array<Record<string, any>>;
+  interests?: string[];
+  // Notes are stored as a string in the form
+  notes?: string;
   birth_date?: string; // ISO date (YYYY-MM-DD)
   role?: string;
   goals?: string;
@@ -66,21 +61,7 @@ const normalizeInterests = (raw: unknown): string[] => {
   return [];
 };
 
-// Normalize notes from string | string[] | object[] -> string
-const normalizeNotes = (raw: unknown, fallback?: string): string => {
-  if (typeof raw === "string") return raw;
-  if (Array.isArray(raw)) {
-    // If array of strings
-    const strings = raw.filter((x) => typeof x === "string") as string[];
-    if (strings.length === raw.length) return strings.join("\n");
-    // If array of objects, try common fields
-    const texts = (raw as Array<Record<string, any>>)
-      .map((o) => (o?.content ?? o?.text ?? o?.note ?? "").toString().trim())
-      .filter((s) => s.length > 0);
-    if (texts.length) return texts.join("\n");
-  }
-  return fallback || "";
-};
+// Normalize notes from string | string[] | object[] -> string (unused but kept for future use)
 
 const normalizePersonaToForm = (p: Persona | null): PersonaFormValues => ({
   name: p?.name ?? "",
@@ -93,7 +74,9 @@ const normalizePersonaToForm = (p: Persona | null): PersonaFormValues => ({
   behavioral_insights: p?.behavioral_insights || "",
   budget_min: p?.budget_min,
   budget_max: p?.budget_max,
-  personality_traits: Array.isArray(p?.personality_traits) ? p.personality_traits : [],
+  personality_traits: Array.isArray(p?.personality_traits)
+    ? p.personality_traits
+    : [],
   description: p?.description || "",
   is_active: p?.is_active ?? true,
 });
@@ -118,12 +101,8 @@ const PersonaDetailPage: React.FC = () => {
   const [persona, setPersona] = useState<Persona | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [editing, setEditing] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [suggesting, setSuggesting] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  // Tabs for redesigned UI
   const [activeTab, setActiveTab] = useState<
     "overview" | "insights" | "preferences" | "notes"
   >("overview");
@@ -165,8 +144,10 @@ const PersonaDetailPage: React.FC = () => {
         behavioral_insights: values.behavioral_insights || undefined,
         budget_min: values.budget_min,
         budget_max: values.budget_max,
-        personality_traits: values.personality_traits?.length ? values.personality_traits : undefined,
-        is_active: values.is_active ?? true
+        personality_traits: values.personality_traits?.length
+          ? values.personality_traits
+          : undefined,
+        is_active: values.is_active ?? true,
       };
 
       const { error } = await api.personas.update(id, payload);
@@ -176,25 +157,6 @@ const PersonaDetailPage: React.FC = () => {
       setEditing(false);
     } catch (e: any) {
       setError(e?.message || "Failed to update");
-    }
-  };
-
-  const handleSuggest = async () => {
-    if (!id) return;
-    setSuggesting(true);
-    setError(null);
-
-    try {
-      const { data, error } = await api.gifts.getRecommendations(id);
-      if (error) {
-        throw new Error(error.message || "Failed to get suggestions");
-      }
-      const list = Array.isArray(data) ? data : [];
-      setSuggestions(list as string[]);
-    } catch (e: any) {
-      setError(e?.message || "Failed to get suggestions");
-    } finally {
-      setSuggesting(false);
     }
   };
 
@@ -281,7 +243,7 @@ const PersonaDetailPage: React.FC = () => {
   }
 
   const formInitial = normalizePersonaToForm(persona);
-  const ageText = computeAge(formInitial.birthDate);
+  const ageText = computeAge(formInitial.birth_date);
   const roleText =
     (persona as any).role ||
     (persona as any).job_title ||
@@ -291,8 +253,22 @@ const PersonaDetailPage: React.FC = () => {
     (persona as any).goal || (persona as any).primary_goal || "—";
   const challengeText =
     (persona as any).challenge || (persona as any).budget_max
-      ? "Limited budget"
+      ? "Sınırlı bütçe"
       : "—";
+
+  // Overview tab için gerekli değişkenler
+  const overviewData = {
+    name: persona.name,
+    age: ageText,
+    role: roleText,
+    interests: formInitial.interests,
+    budget_min: formInitial.budget_min,
+    budget_max: formInitial.budget_max,
+    goals: formInitial.goals,
+    challenges: formInitial.challenges,
+    behavioral_insights: formInitial.behavioral_insights,
+    notes: formInitial.notes,
+  };
 
   return (
     <div
@@ -303,24 +279,6 @@ const PersonaDetailPage: React.FC = () => {
       }}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
-        {/* Top actions */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="inline-flex items-center gap-2 text-white/80">
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: "var(--gm-accent)" }}
-            />
-            <span className="font-medium">giftMind</span>
-          </div>
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium text-white hover:opacity-95"
-            style={{ backgroundColor: "var(--gm-primary)" }}
-          >
-            <ArrowLeft className="h-4 w-4" /> Back to Dashboard
-          </Link>
-        </div>
-
         {/* Header: name + subtitle */}
         <div className="mb-6">
           <h1
@@ -330,9 +288,7 @@ const PersonaDetailPage: React.FC = () => {
             {persona.name}
           </h1>
           <p className="mt-1" style={{ color: "rgba(255,255,255,0.7)" }}>
-            {(persona as any).title ||
-              (persona as any).headline ||
-              "Creative Strategist"}
+            {(persona as any).role || "—"}
           </p>
         </div>
 
@@ -374,7 +330,7 @@ const PersonaDetailPage: React.FC = () => {
                     <Gift className="h-3.5 w-3.5" />
                   </span>
                   <span className="text-sm">
-                    <span className="opacity-80">Age:</span>{" "}
+                    <span className="opacity-80">Yaş:</span>{" "}
                     <span className="text-white/90 font-medium">
                       {ageText ?? "—"}
                     </span>
@@ -391,7 +347,7 @@ const PersonaDetailPage: React.FC = () => {
                     <Briefcase className="h-3.5 w-3.5" />
                   </span>
                   <span className="text-sm">
-                    <span className="opacity-80">Role:</span>{" "}
+                    <span className="opacity-80">Meslek:</span>{" "}
                     <span className="text-white/90 font-medium">
                       {roleText}
                     </span>
@@ -408,7 +364,7 @@ const PersonaDetailPage: React.FC = () => {
                     <Flag className="h-3.5 w-3.5" />
                   </span>
                   <span className="text-sm">
-                    <span className="opacity-80">Goal:</span>{" "}
+                    <span className="opacity-80">Hedef:</span>{" "}
                     <span className="text-white/90 font-medium">
                       {goalText}
                     </span>
@@ -425,7 +381,7 @@ const PersonaDetailPage: React.FC = () => {
                     <AlertCircle className="h-3.5 w-3.5" />
                   </span>
                   <span className="text-sm">
-                    <span className="opacity-80">Challenge:</span>{" "}
+                    <span className="opacity-80">Bütçe:</span>{" "}
                     <span className="text-white/90 font-medium">
                       {challengeText}
                     </span>
@@ -452,10 +408,10 @@ const PersonaDetailPage: React.FC = () => {
           <div className="flex items-center gap-6 border-b border-white/10">
             {(
               [
-                { key: "overview", label: "Overview" },
-                { key: "insights", label: "Behavioral Insights" },
-                { key: "preferences", label: "Preferences" },
-                { key: "notes", label: "Notes/AI Suggestions" },
+                { key: "overview", label: "Özet" },
+                { key: "insights", label: "Davranışsal İnançlar" },
+                { key: "preferences", label: "Tercihler" },
+                { key: "notes", label: "Notlar/AI Önerileri" },
               ] as const
             ).map((t) => (
               <button
@@ -489,7 +445,70 @@ const PersonaDetailPage: React.FC = () => {
                 border: "1px solid rgba(255,255,255,0.06)",
               }}
             >
-              <div className="flex items-start gap-6"></div>
+              <div className="border rounded-xl p-4 bg-light-200">
+                <h4 className="text-sm font-semibold mb-2 text-white">
+                  Özet Önizleme
+                </h4>
+                <div className="text-sm mb-2 flex">
+                  <strong className="text-white/60">İsim:</strong>
+                  <div className="mt-1 whitespace-pre-wrap text-xs text-teal-400 text-bold ml-2">
+                    {overviewData.name || "—"}
+                  </div>
+                </div>
+                <div className="text-sm mb-2 flex items-center">
+                  <strong className="text-white/60">Yaş:</strong>
+                  <div className="ml-2 whitespace-pre-wrap text-xs text-teal-400 text-bold">
+                    {overviewData.age ?? "—"}
+                  </div>
+                </div>
+                <div className="text-sm mb-2 flex">
+                  <strong className="text-white/60">Rol:</strong>
+                  <div className="mt-1 whitespace-pre-wrap text-xs text-teal-400 text-bold ml-2">
+                    {overviewData.role || "—"}
+                  </div>
+                </div>
+                <div className="text-sm mb-2 flex">
+                  <strong className="text-white/60">İlgi Alanları:</strong>
+                  <div className="mt-1 whitespace-pre-wrap text-xs text-teal-400 text-bold ml-2">
+                    {overviewData.interests.length
+                      ? overviewData.interests.join(", ")
+                      : "—"}
+                  </div>
+                </div>
+                <div className="text-sm mb-2 flex">
+                  <strong className="text-white/60">Bütçe:</strong>
+                  <div className="mt-1 whitespace-pre-wrap text-xs text-teal-400 text-bold ml-2">
+                    {overviewData.budget_min || "—"} —{" "}
+                    {overviewData.budget_max || "—"}
+                  </div>
+                </div>
+                <div className="text-sm mt-2 flex">
+                  <strong className="text-white/60">Hedefler:</strong>
+                  <div className="mt-1 whitespace-pre-wrap text-xs text-teal-400 text-bold ml-2">
+                    {overviewData.goals || "—"}
+                  </div>
+                </div>
+                <div className="text-sm mt-2 flex">
+                  <strong className="text-white/60">Zorluklar:</strong>
+                  <div className="mt-1 whitespace-pre-wrap text-xs text-teal-400 text-bold ml-2">
+                    {overviewData.challenges || "—"}
+                  </div>
+                </div>
+                <div className="text-sm mt-2 flex">
+                  <strong className="text-white/60">
+                    Davranışsal İçgörüler:
+                  </strong>
+                  <div className="mt-1 whitespace-pre-wrap text-xs text-teal-400 text-bold ml-2">
+                    {overviewData.behavioral_insights || "—"}
+                  </div>
+                </div>
+                <div className="text-sm mt-2 flex">
+                  <strong className="text-white/60">Notlar:</strong>
+                  <div className="mt-1 whitespace-pre-wrap text-xs text-teal-400 text-bold ml-2">
+                    {overviewData.notes || "—"}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -540,45 +559,46 @@ const PersonaDetailPage: React.FC = () => {
           )}
 
           {activeTab === "notes" && (
-            <div
-              className="rounded-2xl p-5 md:p-6 space-y-4"
-              style={{
-                backgroundColor: "#12132A",
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <h3
-                  className="text-sm font-medium"
-                  style={{ color: "#FFFFFF" }}
-                >
-                  AI Suggestions
-                </h3>
-                <button
-                  onClick={handleSuggest}
-                  disabled={suggesting}
-                  className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
-                  style={{ backgroundColor: "var(--gm-secondary)" }}
-                >
-                  <Sparkles className="h-4 w-4" />
-                  {suggesting ? "Generating…" : "Generate"}
-                </button>
-              </div>
-              {suggestions.length ? (
-                <ul
-                  className="list-disc pl-5 text-sm"
-                  style={{ color: "#C9CBF0" }}
-                >
-                  {suggestions.map((s, i) => (
-                    <li key={i}>{s}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm" style={{ color: "#C9CBF0" }}>
-                  Henüz öneri yok.
-                </p>
-              )}
-            </div>
+            // <div
+            //   className="rounded-2xl p-5 md:p-6 space-y-4"
+            //   style={{
+            //     backgroundColor: "#12132A",
+            //     border: "1px solid rgba(255,255,255,0.06)",
+            //   }}
+            // >
+            //   <div className="flex items-center justify-between">
+            //     <h3
+            //       className="text-sm font-medium"
+            //       style={{ color: "#FFFFFF" }}
+            //     >
+            //       AI Suggestions
+            //     </h3>
+            //     <button
+            //       onClick={handleSuggest}
+            //       disabled={suggesting}
+            //       className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+            //       style={{ backgroundColor: "var(--gm-secondary)" }}
+            //     >
+            //       <Sparkles className="h-4 w-4" />
+            //       {suggesting ? "Generating…" : "Generate"}
+            //     </button>
+            //   </div>
+            //   {suggestions.length ? (
+            //     <ul
+            //       className="list-disc pl-5 text-sm"
+            //       style={{ color: "#C9CBF0" }}
+            //     >
+            //       {suggestions.map((s, i) => (
+            //         <li key={i}>{s}</li>
+            //       ))}
+            //     </ul>
+            //   ) : (
+            //     <p className="text-sm" style={{ color: "#C9CBF0" }}>
+            //       Henüz öneri yok.
+            //     </p>
+            //   )}
+            // </div>
+            <GiftSuggestions persona={persona} />
           )}
         </div>
 

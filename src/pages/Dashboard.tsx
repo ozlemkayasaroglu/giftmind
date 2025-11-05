@@ -1,12 +1,11 @@
 // Dashboard.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus, X } from "lucide-react";
-import { useAuth } from "../context";
 import { api } from "../lib";
 import type { Persona } from "../lib/types";
-import PersonaForm from "../components/PersonaForm";
 import type { PersonaFormValues } from "../components/PersonaForm";
+import PersonaForm from "../components/PersonaForm";
 
 type AddPersonaModalProps = {
   isOpen: boolean;
@@ -28,7 +27,6 @@ const AddPersonaModal: React.FC<AddPersonaModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasUnsaved, setHasUnsaved] = useState(false);
-  const modalRef = useRef<HTMLDivElement | null>(null);
 
   // body scroll lock
   useEffect(() => {
@@ -98,9 +96,8 @@ const AddPersonaModal: React.FC<AddPersonaModalProps> = ({
     }
   };
 
-  const handleFormChange = (values?: Partial<PersonaFormValues>) => {
+  const handleFormChange = () => {
     setHasUnsaved(true);
-    // burada istersen debounce ile localStorage autosave ekleyebilirsin
   };
 
   if (!isOpen) return null;
@@ -119,12 +116,11 @@ const AddPersonaModal: React.FC<AddPersonaModalProps> = ({
     >
       {/* backdrop clickable area handled by parent div onClick */}
       <div
-        ref={modalRef}
         className="relative z-10 w-full max-w-3xl mx-auto rounded-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "#0E0F1A",
-          border: "1px solid rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255, 255, 255, 0.04)",
         }}
       >
         {/* header */}
@@ -190,19 +186,16 @@ const AddPersonaModal: React.FC<AddPersonaModalProps> = ({
    Dashboard page component
    ------------------------ */
 const Dashboard: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      checkApiHealth();
-      fetchPersonas();
-    }
+    checkApiHealth();
+    fetchPersonas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, []);
 
   const checkApiHealth = async () => {
     try {
@@ -256,7 +249,7 @@ const Dashboard: React.FC = () => {
     return "—";
   };
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -278,8 +271,8 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  const greetName = user?.email ? user.email.split("@")[0] : "misafir";
   const budgetText = getBudgetRangeText(personas);
+  const greetName = "misafir"; // Default greeting name
 
   return (
     <div
@@ -289,11 +282,11 @@ const Dashboard: React.FC = () => {
           "radial-gradient(1200px circle at 50% -20%, rgba(35,201,255,0.12), transparent 40%), linear-gradient(180deg, #0C0C1E 0%, #0B0B1A 100%)",
       }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 ">
         {/* Hero */}
-        <div className="mb-6 md:mb-8">
+        <div className="mb-6 md:mb-8 ">
           <h1
-            className="text-3xl md:text-4xl font-bold"
+            className="text-2xl md:text-4xl font-bold pt-10"
             style={{ color: "#FFFFFF" }}
           >
             Tekrar hoş geldin, {greetName}{" "}
@@ -336,7 +329,7 @@ const Dashboard: React.FC = () => {
           <div
             className="rounded-2xl p-5 md:p-6 flex items-center justify-between"
             style={{
-              background: "linear-gradient(135deg, #5B5FF1, #00C9A7)",
+              background: "linear-gradient(135deg, #3136c6ac, #08756386)",
               color: "white",
               boxShadow: "0 12px 40px rgba(0,201,167,0.25)",
             }}
@@ -370,7 +363,7 @@ const Dashboard: React.FC = () => {
           <div
             className="rounded-2xl p-5 md:p-6 flex items-center justify-between"
             style={{
-              background: "linear-gradient(135deg, #5B5FF1, #00C9A7)",
+              background: "linear-gradient(135deg, #3136c6ac, #08756386)",
               color: "white",
               boxShadow: "0 12px 40px rgba(0,201,167,0.25)",
             }}

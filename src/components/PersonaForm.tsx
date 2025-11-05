@@ -337,6 +337,35 @@ const PersonaForm: React.FC<PersonaFormProps> = ({
       setBehavioralInsights((prev) => (prev ? `${prev}\n${text}` : text));
   };
 
+  // Calculate age from birth date (YYYY-MM-DD format)
+  const calculateAge = (birthDate: string): string => {
+    if (!birthDate) return "—";
+
+    try {
+      const birthDateObj = new Date(birthDate);
+      const today = new Date();
+
+      // Check if the date is valid
+      if (isNaN(birthDateObj.getTime())) return "—";
+
+      let age = today.getFullYear() - birthDateObj.getFullYear();
+      const monthDiff = today.getMonth() - birthDateObj.getMonth();
+
+      // Adjust age if birthday hasn't occurred yet this year
+      if (
+        monthDiff < 0 ||
+        (monthDiff === 0 && today.getDate() < birthDateObj.getDate())
+      ) {
+        age--;
+      }
+
+      return age > 0 ? `${age} yaş` : "—";
+    } catch (error) {
+      console.error("Error calculating age:", error);
+      return "—";
+    }
+  };
+
   // preview component
   const PreviewCard: React.FC = () => (
     <div className="border rounded-xl p-4 bg-light-200">
@@ -347,10 +376,10 @@ const PersonaForm: React.FC<PersonaFormProps> = ({
           {name || "—"}
         </div>
       </div>
-      <div className="text-sm mb-2 flex">
-        <strong className="text-white/60">Doğum Tarihi:</strong>
-        <div className="mt-1 whitespace-pre-wrap text-xs text-teal-400 text-bold">
-          {birth_date || "—"}
+      <div className="text-sm mb-2 flex items-center">
+        <strong className="text-white/60">Yaş:</strong>
+        <div className="ml-1 whitespace-pre-wrap text-xs text-teal-400 text-bold">
+          {calculateAge(birth_date)}
         </div>
       </div>
       <div className="text-sm mb-2 flex">
@@ -404,14 +433,7 @@ const PersonaForm: React.FC<PersonaFormProps> = ({
     </div>
   );
 
-  // styles
-  const inputClass =
-    "w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2";
-  const darkStyle: React.CSSProperties = {
-    borderColor: "#2A2B3F",
-    backgroundColor: "#17182B",
-    color: "#E5E7EB",
-  };
+  // styles (removed unused variables)
 
   // render step panels
   const renderFormPanel = () => {
