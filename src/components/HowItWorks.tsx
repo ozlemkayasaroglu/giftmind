@@ -1,6 +1,5 @@
 import { UserPlus, Settings, Lightbulb, Gift } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { LoginPage } from "../pages";
 
 const steps = [
   {

@@ -1,6 +1,5 @@
 import { Star, Quote } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { RegisterPage } from "../pages";
 
 const testimonials = [
   {
