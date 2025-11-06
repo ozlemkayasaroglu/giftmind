@@ -13,6 +13,7 @@ interface ApiResponse<T = any> {
   };
   message?: string;
   error?: string;
+  redirectUrl?: string;
 }
 
 interface User {
@@ -376,6 +377,24 @@ class RailwayAPI {
     return response;
   }
 
+  async signInWithOAuth({ provider }: { provider: 'google' | 'github' }): Promise<ApiResponse<{ user?: User; token?: string }>> {
+    const response = await this.apiCall('POST', `/api/auth/${provider}`);
+
+    // OAuth flow will redirect the user to the provider's login page
+    if (response.success && response.redirectUrl) {
+      window.location.href = response.redirectUrl;
+      // We'll never reach this point due to the redirect
+      return { success: true, data: {} };
+    }
+
+    const token = response.token || response.session?.accessToken;
+    if ((response as any).success && token) {
+      this.setToken(token);
+    }
+
+    return response;
+  }
+
   async signOut(): Promise<ApiResponse> {
     const response = await this.apiCall('POST', '/api/logout');
     this.clearToken();
@@ -559,61 +578,25 @@ class RailwayAPI {
     return this.apiCall('DELETE', `/api/events/${eventId}`);
   }
 
-  // Helper function to convert file to base64
-  private fileToBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = error => reject(error);
-    });
-  }
-
   // Avatar endpoints
   async uploadPersonaAvatar(personaId: string, file: File): Promise<ApiResponse<{ avatar_url: string }>> {
     const token = this.getToken();
-    
-    try {
-      // Convert file to base64
-      const base64Data = await this.fileToBase64(file);
-      
-      const res = await fetch(`${this.baseURL}/api/personas/${personaId}/avatar-basic`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({
-          avatar_data: base64Data,
-          file_name: file.name,
-          file_type: file.type
-        })
-      });
+    const form = new FormData();
+    form.append('file', file);
 
-      const text = await res.text();
-      let json: any;
-      try { json = text ? JSON.parse(text) : {}; } catch { json = { message: text }; }
-      
-      if (!res.ok) {
-        return { 
-          success: false, 
-          error: json?.message || 'Avatar upload failed',
-          details: json?.error || undefined
-        } as any;
-      }
-      
-      return { 
-        success: true, 
-        ...(json || {}), 
-        data: (json?.data || json) 
-      } as any;
-    } catch (error) {
-      console.error('Error uploading avatar:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to process avatar' 
-      } as any;
+    const res = await fetch(`${this.baseURL}/api/personas/${personaId}/avatar-simple`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } as any : undefined,
+      body: form,
+    });
+
+    const text = await res.text();
+    let json: any;
+    try { json = text ? JSON.parse(text) : {}; } catch { json = { message: text }; }
+    if (!res.ok) {
+      return { success: false, error: json?.message || 'Avatar upload failed' } as any;
     }
+    return { success: true, ...(json || {}), data: (json?.data || json) } as any;
   }
 
   async getPersonaAvatar(personaId: string): Promise<ApiResponse<{ avatar_url: string }>> {
@@ -646,250 +629,21 @@ class RailwayAPI {
     return { success: true, ...(json || {}) } as any;
   }
 
-  // Personality Traits
-  async getPersonalityTraits(): Promise<ApiResponse<{
-    categories: Array<{
-      key: string;
-      category: string;
-      description: string;
-      traits: string[];
-    }>;
-    allTraits: string[];
-  }>> {
-    // Mock data - replace with actual API call
-    const mockData = {
-      success: true,
-      data: {
-        categories: [
-          {
-            key: 'social',
-            category: 'Sosyal Özellikler',
-            description: 'Kişinin sosyal etkileşimlerini yansıtan özellikler',
-            traits: [
-              'Dışa dönük',
-              'İçe dönük',
-              'Sosyal',
-              'Sessiz',
-              'Girişken',
-              'Çekingen',
-              'Samimi',
-              'Resmi',
-              'Eğlenceli',
-              'Ciddi',
-              'Konuşkan',
-              'Sessiz',
-              'Lider',
-              'Takım oyuncusu',
-              'Popüler',
-              'Münzevi',
-              'Misafirperver',
-              'Yalnız',
-              'Arkadaş canlısı',
-              'Sosyal sorumlu'
-            ]
-          },
-          {
-            key: 'emotional',
-            category: 'Duygusal Özellikler',
-            description: 'Duygu durumunu ve tepkilerini yansıtan özellikler',
-            traits: [
-              'Sakin',
-              'Enerjik',
-              'Optimist',
-              'Pesimist',
-              'Duygusal',
-              'Soğukkanlı',
-              'Heyecanlı',
-              'Sakin',
-              'Duyarlı',
-              'Duyarsız',
-              'Neşeli',
-              'Hüzünlü',
-              'Öfkeli',
-              'Sakin',
-              'Stresli',
-              'Rahat',
-              'Endişeli',
-              'Güvenli',
-              'Kırılgan',
-              'Güçlü'
-            ]
-          },
-          {
-            key: 'intellectual',
-            category: 'Zihinsel Özellikler',
-            description: 'Düşünce yapısı ve zihinsel süreçleri yansıtan özellikler',
-            traits: [
-              'Meraklı',
-              'Analitik',
-              'Yaratıcı',
-              'Mantıklı',
-              'Duygusal',
-              'Nesnel',
-              'Öznel',
-              'Akılcı',
-              'Sezgisel',
-              'Deneysel',
-              'Teorik',
-              'Pratik',
-              'Detaycı',
-              'Genel bakış',
-              'Hızlı kavrayan',
-              'Yavaş öğrenen',
-              'Öğrenmeye açık',
-              'Bilgili',
-              'Araştırmacı',
-              'Bilimsel'
-            ]
-          },
-          {
-            key: 'lifestyle',
-            category: 'Yaşam Tarzı',
-            description: 'Günlük yaşam tercihlerini yansıtan özellikler',
-            traits: [
-              'Aktif',
-              'Sakin',
-              'Düzenli',
-              'Dağınık',
-              'Erkenci',
-              'Geçci',
-              'Sporcu',
-              'Evcimen',
-              'Seyahat sever',
-              'Ev kuşu',
-              'Sosyal',
-              'Yalnız',
-              'Moda düşkünü',
-              'Rahatına düşkün',
-              'Sağlıklı yaşam',
-              'Yemek sever',
-              'Teknoloji meraklısı',
-              'Doğa aşığı',
-              'Şehir insanı',
-              'Minimalist'
-            ]
-          },
-          {
-            key: 'work',
-            category: 'İş ve Kariyer',
-            description: 'İş yaşamındaki tutum ve davranışları yansıtan özellikler',
-            traits: [
-              'Hırslı',
-              'Çalışkan',
-              'Tembel',
-              'Lider',
-              'Takipçi',
-              'Bağımsız',
-              'Ekip çalışanı',
-              'Yönetici',
-              'Çalışan',
-              'Girişimci',
-              'Yaratıcı',
-              'Analitik',
-              'Detaycı',
-              'Stratejik',
-              'Pratik',
-              'Teorik',
-              'Deneyimli',
-              'Acemi',
-              'Uzman',
-              'Çok yönlü'
-            ]
-          },
-          {
-            key: 'hobbies',
-            category: 'Hobiler ve İlgi Alanları',
-            description: 'Kişisel ilgi alanlarını yansıtan özellikler',
-            traits: [
-              'Sanat seven',
-              'Müzik sever',
-              'Kitap kurdu',
-              'Sinemasever',
-              'Sporcu',
-              'Seyahat sever',
-              'Yemek yapmayı seven',
-              'Bahçe işleri',
-              'El işleri',
-              'Teknoloji meraklısı',
-              'Oyun oynayan',
-              'Dansçı',
-              'Müzisyen',
-              'Ressam',
-              'Fotoğrafçı',
-              'Yazar',
-              'Şef',
-              'Koleksiyoncu',
-              'Gönüllü',
-              'Aktivist'
-            ]
-          }
-        ],
-        allTraits: [
-          // Social
-          'Dışa dönük', 'İçe dönük', 'Sosyal', 'Sessiz', 'Girişken', 'Çekingen', 'Samimi', 'Resmi', 'Eğlenceli', 'Ciddi',
-          'Konuşkan', 'Sessiz', 'Lider', 'Takım oyuncusu', 'Popüler', 'Münzevi', 'Misafirperver', 'Yalnız', 'Arkadaş canlısı', 'Sosyal sorumlu',
-          // Emotional
-          'Sakin', 'Enerjik', 'Optimist', 'Pesimist', 'Duygusal', 'Soğukkanlı', 'Heyecanlı', 'Duyarlı', 'Duyarsız', 'Neşeli',
-          'Hüzünlü', 'Öfkeli', 'Stresli', 'Rahat', 'Endişeli', 'Güvenli', 'Kırılgan', 'Güçlü',
-          // Intellectual
-          'Meraklı', 'Analitik', 'Yaratıcı', 'Mantıklı', 'Duygusal', 'Nesnel', 'Öznel', 'Akılcı', 'Sezgisel', 'Deneysel',
-          'Teorik', 'Pratik', 'Detaycı', 'Genel bakış', 'Hızlı kavrayan', 'Yavaş öğrenen', 'Öğrenmeye açık', 'Bilgili', 'Araştırmacı', 'Bilimsel',
-          // Lifestyle
-          'Aktif', 'Sakin', 'Düzenli', 'Dağınık', 'Erkenci', 'Geçci', 'Sporcu', 'Evcimen', 'Seyahat sever', 'Ev kuşu',
-          'Sosyal', 'Yalnız', 'Moda düşkünü', 'Rahatına düşkün', 'Sağlıklı yaşam', 'Yemek sever', 'Teknoloji meraklısı', 'Doğa aşığı', 'Şehir insanı', 'Minimalist',
-          // Work
-          'Hırslı', 'Çalışkan', 'Tembel', 'Lider', 'Takipçi', 'Bağımsız', 'Ekip çalışanı', 'Yönetici', 'Çalışan', 'Girişimci',
-          'Yaratıcı', 'Analitik', 'Detaycı', 'Stratejik', 'Pratik', 'Teorik', 'Deneyimli', 'Acemi', 'Uzman', 'Çok yönlü',
-          // Hobbies
-          'Sanat seven', 'Müzik sever', 'Kitap kurdu', 'Sinemasever', 'Sporcu', 'Seyahat sever', 'Yemek yapmayı seven', 'Bahçe işleri', 'El işleri', 'Teknoloji meraklısı',
-          'Oyun oynayan', 'Dansçı', 'Müzisyen', 'Ressam', 'Fotoğrafçı', 'Yazar', 'Şef', 'Koleksiyoncu', 'Gönüllü', 'Aktivist'
-        ]
-      }
-    };
-    
-    // In a real implementation, you would make an API call like:
-    // return this.apiCall('GET', '/api/personality-traits');
-    
-    return mockData;
-  }
-
-  // Alias for backward compatibility
-  async getPersonalityTraitsAll(): Promise<ApiResponse<string[]>> {
-    const result = await this.getPersonalityTraits();
-    return {
-      success: result.success,
-      data: result.data?.allTraits || []
-    };
-  }
-
-  async getPersonalityTraitsByCategory(): Promise<ApiResponse<Array<{
-    key: string;
-    category: string;
-    description: string;
-    traits: string[];
-  }>>> {
-    const result = await this.getPersonalityTraits();
-    return {
-      success: result.success,
-      data: result.data?.categories || []
-    };
-  }
-
   // Optional stubs for future endpoints
   async searchGifts(_query: string, _filters?: any): Promise<ApiResponse<any>> {
-    return { success: true, data: [] };
+    return { success: false, error: 'Not implemented' } as any;
   }
 
   async getGiftCategories(): Promise<ApiResponse<any>> {
-    return { success: true, data: [] };
+    return { success: false, error: 'Not implemented' } as any;
   }
 
   async getUserPreferences(): Promise<ApiResponse<any>> {
-    return { success: true, data: {} };
+    return { success: false, error: 'Not implemented' } as any;
   }
 
   async updateUserPreferences(_preferences: any): Promise<ApiResponse<any>> {
-    return { success: true, data: {} };
+    return { success: false, error: 'Not implemented' } as any;
   }
 }
 
