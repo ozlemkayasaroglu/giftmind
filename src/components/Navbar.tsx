@@ -2,7 +2,7 @@ import { StarHalf, LogOut } from "lucide-react";
 import { useState } from "react";
 
 export default function Header() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     // TODO: replace with real logout logic (clear auth tokens, call API, redirect, etc.)

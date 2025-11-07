@@ -218,14 +218,10 @@ export const api = {
 
   // Gift Recommendations - Now using Railway API directly
   gifts: {
-    getRecommendations: (personaId: string) => {
-      if (USE_MOCK_DATA) {
-        return mockApi.gifts.getRecommendations(personaId);
-      }
-      return railwayApi.getGiftRecommendations(personaId).then(result => ({
-        data: result.success ? result.data : null,
-        error: result.success ? null : { message: result.error }
-      }));
+    getRecommendations: async (personaId: string, context?: any) => {
+      if (USE_MOCK_DATA) return mockApi.gifts.getRecommendations(personaId)
+      // Forward context to the lower-level railway API so backend can use persona context (preferences, events, behavioralInsights)
+      return railwayApi.getGiftRecommendations(personaId, context).then((r) => ({ data: r.data, error: r.error }))
     },
     
     search: (query: string, filters?: any) => {

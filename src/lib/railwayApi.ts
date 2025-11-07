@@ -111,7 +111,7 @@ interface PersonaEventCamel {
   userId?: string;
   title: string;
   details?: string;
-  category?: string;
+  category: string;
   type?: string;
   tags?: string[];
   occurredAt?: string;
@@ -149,9 +149,9 @@ const snakeToCamelEvent = (e: PersonaEventSnake): PersonaEventCamel => {
     personaId: e.persona_id,
     userId: e.user_id,
     title: e.title,
+    category: e.category ?? '',
   };
   if (e.details !== undefined) out.details = e.details;
-  if (e.category !== undefined) out.category = e.category as string;
   if (e.type !== undefined) out.type = e.type as string;
   if (e.tags !== undefined) out.tags = e.tags;
   if (e.occurred_at !== undefined) out.occurredAt = e.occurred_at;
@@ -644,6 +644,21 @@ class RailwayAPI {
 
   async updateUserPreferences(_preferences: any): Promise<ApiResponse<any>> {
     return { success: false, error: 'Not implemented' } as any;
+  }
+
+  // Personality traits endpoints
+  async getPersonalityTraitsAll(): Promise<ApiResponse<string[]>> {
+    const res = await this.apiCall<any>('GET', '/api/personality-traits');
+    if (!res.success) return res as ApiResponse<string[]>;
+    const data = (res as any).data ?? (res as any).traits ?? [];
+    return { success: true, data };
+  }
+
+  async getPersonalityTraitsByCategory(): Promise<ApiResponse<any[]>> {
+    const res = await this.apiCall<any>('GET', '/api/personality-traits/categories');
+    if (!res.success) return res as ApiResponse<any[]>;
+    const data = (res as any).data ?? (res as any).categories ?? [];
+    return { success: true, data };
   }
 }
 

@@ -13,7 +13,6 @@ import {
   Briefcase,
   Flag,
   AlertCircle,
-  User as UserIcon,
   Sparkles,
 } from "lucide-react";
 import Swal from "sweetalert2";
@@ -89,8 +88,20 @@ const normalizeNotes = (raw: unknown, fallback?: string): string => {
   return fallback || "";
 };
 
+// Derive a display name from various possible DB fields (handles null name column)
+const getPersonaDisplayName = (p: Persona | null): string | null => {
+  if (!p) return null;
+  // Common alternatives: persona_name, full_name, first_name + last_name
+  const direct = (p as any).name || (p as any).persona_name || (p as any).full_name;
+  if (direct && typeof direct === 'string' && direct.trim().length) return direct.trim();
+  const first = (p as any).first_name || (p as any).given_name || (p as any).fname;
+  const last = (p as any).last_name || (p as any).surname || (p as any).lname;
+  if (first || last) return `${first || ''}${first && last ? ' ' : ''}${last || ''}`.trim();
+  return null;
+};
+
 const normalizePersonaToForm = (p: Persona | null): PersonaFormValues => ({
-  name: p?.name ?? "",
+  name: getPersonaDisplayName(p) ?? "",
   birthDate: p?.birthDate || p?.birth_date || p?.dob || "",
   interests: normalizeInterests(p?.interests),
   // Use backend description as the form's description field
@@ -137,7 +148,8 @@ const PersonaDetailPage: React.FC = () => {
   const [previewValues, setPreviewValues] = useState<PersonaFormValues | null>(
     null
   );
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  // suggestions may be objects or strings; persist them to persona
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const [suggesting, setSuggesting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   // Tabs for redesigned UI
@@ -169,7 +181,11 @@ const PersonaDetailPage: React.FC = () => {
       // Use centralized API client to support various response shapes ({data} | {persona} | plain)
       const { data, error } = await api.personas.get(id);
       if (error) throw new Error(error.message || "Failed to load persona");
-      setPersona((data as any) ?? null);
+      const p = (data as any) ?? null;
+      setPersona(p);
+      // Load persisted suggestions if present on the persona
+      const persisted = (p && ((p.gift_recommendations as any[]) || (p.recommendations as any[]) || (p.giftSuggestions as any[]))) || [];
+      setSuggestions(Array.isArray(persisted) ? persisted.slice(0, 4) : []);
     } catch (e: any) {
       setError(e?.message || "Failed to load persona");
     } finally {
@@ -237,14 +253,38 @@ const PersonaDetailPage: React.FC = () => {
     setError(null);
 
     try {
-      const { data, error } = await api.gifts.getRecommendations(id);
+      // Build rich context from preview values (if editing) or stored persona and recent events
+      const ctxValues = previewValues ?? normalizePersonaToForm(persona);
+      const contextPayload = {
+        name: ctxValues.name,
+        preferences: ctxValues.interests,
+        behavioralInsights: ctxValues.behavioralInsights,
+        notes: ctxValues.notes,
+        goals: ctxValues.goals,
+        challenges: ctxValues.challenges,
+        budgetMin: (ctxValues as any).budgetMin,
+        budgetMax: (ctxValues as any).budgetMax,
+        events: events.map((ev) => ({
+          title: ev.title,
+          details: ev.details,
+          occurred_at: (ev as any).occurredAt || ev.occurredAt || undefined,
+        })),
+      };
+
+      // Request recommendations from backend with context
+      const { data, error } = await api.gifts.getRecommendations(id, contextPayload);
+      console.debug("getRecommendations response:", { data, error });
       if (error) {
-        throw new Error(error.message || "Failed to get suggestions");
+        const msg = typeof error === 'string' ? error : (error && (error as any).message) ? (error as any).message : 'Failed to get suggestions';
+        throw new Error(msg);
       }
+
       const list = Array.isArray(data) ? data : [];
-      setSuggestions(list as string[]);
-    } catch (e: any) {
-      setError(e?.message || "Failed to get suggestions");
+      setSuggestions(list.slice(0, 4));
+    } catch (err: any) {
+      console.error("Gift recommendations error:", err);
+      setSuggestions([]);
+      setError(err?.message || "Failed to get suggestions");
     } finally {
       setSuggesting(false);
     }
@@ -453,10 +493,6 @@ const PersonaDetailPage: React.FC = () => {
     "—";
   const goalText =
     (persona as any).goal || (persona as any).primary_goal || "—";
-  const challengeText =
-    (persona as any).challenge || (persona as any).budget_max
-      ? "Limited budget"
-      : "—";
 
   return (
     <div
@@ -759,14 +795,7 @@ const PersonaDetailPage: React.FC = () => {
                 </button>
               </div>
               {suggestions.length ? (
-                <ul
-                  className="list-disc pl-5 text-sm"
-                  style={{ color: "#C9CBF0" }}
-                >
-                  {suggestions.map((s, i) => (
-                    <li key={i}>{s}</li>
-                  ))}
-                </ul>
+                <SuggestionGrid suggestions={suggestions} context={previewValues ?? formInitial} />
               ) : (
                 <p className="text-sm" style={{ color: "#C9CBF0" }}>
                   Henüz öneri yok.
@@ -1073,6 +1102,85 @@ const PersonaDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+// SuggestionGrid: renders suggestions as 2-column card grid and shows a small tooltip when hovering Detay
+const SuggestionGrid: React.FC<{ suggestions: any[]; context?: PersonaFormValues | null }> = ({ suggestions }) => {
+  const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {suggestions.map((raw, i) => {
+        // Use only server-provided fields. Do not synthesize titles or reasons from client-side persona data.
+        const title = typeof raw === "string" ? raw : raw?.title ?? raw?.name ?? String(raw);
+        // Prefer explicit 'reason' field; if backend provides array 'reasons', join them. Do not construct reasons from context.
+        let explicitReason: string | null = null;
+        if (raw && typeof raw === 'object') {
+          if (typeof raw.reason === 'string' && raw.reason.trim()) explicitReason = raw.reason;
+          else if (Array.isArray(raw.reasons) && raw.reasons.length) explicitReason = raw.reasons.join(' ');
+        }
+        const reason = explicitReason ?? 'Neden API tarafından sağlanmadı.';
+
+        return (
+          <div
+            key={i}
+            className="rounded-2xl p-4 relative"
+            style={{
+              backgroundColor: "#0F1224",
+              border: "1px solid rgba(255,255,255,0.04)",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
+            }}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-sm font-semibold" style={{ color: "#FFFFFF" }}>
+                  {title}
+                </div>
+                <div className="text-xs mt-2" style={{ color: "#C9CBF0" }}>
+                  {typeof raw === 'object' && (raw?.description || raw?.summary) ? (raw?.description || raw?.summary) : 'Önerilen hediye'}
+                </div>
+              </div>
+              <div className="flex items-center ml-3 relative">
+                <button
+                  onMouseEnter={() => setHoverIndex(i)}
+                  onMouseLeave={() => setHoverIndex((v) => (v === i ? null : v))}
+                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
+                  style={{
+                    backgroundColor: "rgba(91,95,241,0.12)",
+                    color: "#EDEBFF",
+                    border: "1px solid rgba(91,95,241,0.08)",
+                  }}
+                >
+                  Detay
+                </button>
+
+                {hoverIndex === i && (
+                  <div
+                    className="absolute z-50 w-64 p-3 rounded-md"
+                    style={{
+                      right: 0,
+                      top: "110%",
+                      backgroundColor: "#0B0B1A",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      boxShadow: "0 8px 30px rgba(0,0,0,0.6)",
+                      color: "#C9CBF0",
+                    }}
+                  >
+                    <div className="text-xs" style={{ color: "#FFFFFF", fontWeight: 600 }}>
+                      Neden önerildi?
+                    </div>
+                    <div className="mt-1 text-xs" style={{ lineHeight: 1.3 }}>
+                      {reason}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };

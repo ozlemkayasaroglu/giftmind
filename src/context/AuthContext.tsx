@@ -16,6 +16,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   login: (email: string, password: string) => Promise<{ data?: any; error?: any }>;
   logout: () => void;
+  register: (email: string, password: string, firstName?: string, lastName?: string) => Promise<{ data?: any; error?: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -77,6 +78,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Registration wrapper to match existing RegisterPage usage
+  const register = async (email: string, password: string, firstName?: string, lastName?: string) => {
+    setLoading(true);
+    try {
+      const res = await railwayApi.signUp({ email, password, firstName, lastName });
+      if ((res as any).success) {
+        const u = (res as any).user ?? (res as any).data?.user ?? null;
+        // Persist token if returned
+        const token = (res as any).token || (res as any).session?.accessToken;
+        if (token) {
+          localStorage.setItem('authToken', token);
+          localStorage.setItem('railway_token', token);
+        }
+        setUser(u);
+        setLoading(false);
+        return { data: res, error: null };
+      }
+      setLoading(false);
+      return { data: null, error: { message: (res as any).error || (res as any).message || 'Registration failed' } };
+    } catch (err: any) {
+      console.error('Registration error:', err);
+      setLoading(false);
+      return { data: null, error: { message: err?.message || 'Registration failed' } };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('authToken');
     setUser(null);
@@ -87,7 +114,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading,
     loginWithGoogle,
     login,
-    logout
+    logout,
+    register,
   };
 
   return (

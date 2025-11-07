@@ -20,14 +20,16 @@ export const personalityTraitsApi = {
    * Get all personality traits as a flat list
    */
   async getAll() {
-    return await railwayApi.getPersonalityTraitsAll();
+    const res = await railwayApi.getPersonalityTraitsAll();
+    return res;
   },
 
   /**
    * Get personality traits grouped by categories
    */
   async getByCategory() {
-    return await railwayApi.getPersonalityTraitsByCategory();
+    const res = await railwayApi.getPersonalityTraitsByCategory();
+    return res;
   },
 
   /**
@@ -36,15 +38,15 @@ export const personalityTraitsApi = {
   async getFullData() {
     const [categoriesRes, allTraitsRes] = await Promise.all([
       railwayApi.getPersonalityTraitsByCategory(),
-      railwayApi.getPersonalityTraitsAll()
+      railwayApi.getPersonalityTraitsAll(),
     ]);
-    
+
     return {
-      success: categoriesRes.success && allTraitsRes.success,
+      success: Boolean(categoriesRes.success && allTraitsRes.success),
       data: {
-        categories: categoriesRes.data || [],
-        allTraits: allTraitsRes.data || []
-      }
+        categories: categoriesRes.data ?? [],
+        allTraits: allTraitsRes.data ?? [],
+      },
     };
   },
 };
