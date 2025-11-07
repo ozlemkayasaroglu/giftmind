@@ -61,11 +61,14 @@ let currentSession: RailwaySession | null = null;
 let authCallbacks: Set<AuthChangeCallback> = new Set();
 
 // Helper to create session from API response
-const createSession = (apiResponse: ApiResponse<{ user: User; token: string }>): RailwaySession | null => {
-  if (apiResponse.success && apiResponse.token && apiResponse.user) {
+const createSession = (apiResponse: ApiResponse<any>): RailwaySession | null => {
+  const token = apiResponse.token || apiResponse.data?.token || apiResponse.session?.accessToken;
+  const user = apiResponse.user || apiResponse.data?.user;
+  
+  if (apiResponse.success && token && user) {
     return {
-      access_token: apiResponse.token,
-      user: apiResponse.user,
+      access_token: token,
+      user: user,
       expires_at: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
     };
   }
@@ -202,6 +205,38 @@ export const railwayAuth = {
       return { 
         data: null, 
         error: { message: error.message || 'Authentication service error' } 
+      };
+    }
+  },
+
+  // Sign in with OAuth provider
+  signInWithProvider: async (provider: 'google' | 'github') => {
+    try {
+      const result = await railwayApi.signInWithOAuth({ provider });
+
+      if (result.success) {
+        const session = createSession(result);
+        if (session) {
+          currentSession = session;
+          notifyAuthChange('SIGNED_IN', session);
+        }
+        return { 
+          data: { 
+            user: result.user, 
+            session 
+          }, 
+          error: null 
+        };
+      } else {
+        return { 
+          data: null, 
+          error: { message: result.error || 'OAuth login failed' } 
+        };
+      }
+    } catch (error: any) {
+      return { 
+        data: null, 
+        error: { message: error.message || 'OAuth authentication service error' } 
       };
     }
   },

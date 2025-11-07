@@ -1,8 +1,8 @@
 import { ArrowRight, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+
 export default function Hero() {
   const navigate = useNavigate();
-
   return (
     <section className="bg-gradient-to-br from-[#0C0C1E] via-[#1A1A2E] to-[#0C0C1E] min-h-screen flex items-center">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
@@ -40,30 +40,23 @@ export default function Hero() {
               </div>
               <div className="flex items-center space-x-2 justify-center lg:justify-start">
                 <div className="w-2 h-2 bg-[#23C9FF] rounded-full"></div>
-                <span className="text-gray-400 text-sm">
-                  %70 zaman tasarrufu
-                </span>
+                <span className="text-gray-400 text-sm">%70 zaman tasarrufu</span>
               </div>
               <div className="flex items-center space-x-2 justify-center lg:justify-start">
                 <div className="w-2 h-2 bg-[#7B61FF] rounded-full"></div>
-                <span className="text-gray-400 text-sm">
-                  Kişiye özel öneriler
-                </span>
+                <span className="text-gray-400 text-sm">Kişiye özel öneriler</span>
               </div>
             </div>
 
             {/* CTA Buttons */}
-            <div
-              onClick={() => navigate("/login")}
-              className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
-            >
-              <button className="bg-gradient-to-r from-[#7B61FF] to-[#6751E8] hover:from-[#6751E8] hover:to-[#5B47D6] text-white px-8 py-4 rounded-2xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-xl flex items-center justify-center space-x-2">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+              <button
+                onClick={() => navigate("/login")}
+                className="bg-gradient-to-r from-[#7B61FF] to-[#6751E8] hover:from-[#6751E8] hover:to-[#5B47D6] text-white px-8 py-4 rounded-2xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-xl flex items-center justify-center space-x-2"
+              >
                 <span>Ücretsiz Dene</span>
                 <ArrowRight className="w-5 h-5" />
               </button>
-              {/* <button className="border border-gray-600 hover:border-[#23C9FF] text-gray-300 hover:text-[#23C9FF] px-8 py-4 rounded-2xl font-semibold transition-all duration-300 backdrop-blur-sm">
-                Demo İzle
-              </button> */}
             </div>
           </div>
 

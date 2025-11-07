@@ -15,6 +15,10 @@ export const API_ENDPOINTS = {
     LOGOUT: `${API_BASE_URL}/api/logout`,
     PROFILE: `${API_BASE_URL}/api/user`,
     REFRESH: `${API_BASE_URL}/api/auth/refresh`,
+    OAUTH: {
+      GOOGLE: `${API_BASE_URL}/api/auth/oauth/google`,
+      CALLBACK: `${API_BASE_URL}/api/auth/oauth/callback`,
+    },
   },
 
   // Personas
