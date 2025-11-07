@@ -20,14 +20,28 @@ export const oauthService = {
         },
         body: JSON.stringify({
           provider: 'google',
-          redirectTo: `${window.location.origin}/auth/callback`
-        })
+          redirectTo: `${window.location.origin}/auth/callback`,
+        }),
       });
 
-      const data = await response.json();
+      // Try parse JSON, fallback to text for debugging
+      let data: any = null;
+      let rawText: string | null = null;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        try {
+          rawText = await response.text();
+        } catch (textErr) {
+          rawText = null;
+        }
+      }
+
+      console.log('Initiate OAuth response:', { status: response.status, statusText: response.statusText, data, rawText });
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to initiate OAuth');
+        const serverMessage = (data && data.message) || rawText || response.statusText || `HTTP ${response.status}`;
+        throw new Error(serverMessage || 'Failed to initiate OAuth');
       }
 
       if (!data.success || !data.url) {
@@ -36,15 +50,15 @@ export const oauthService = {
 
       // Navigate to the authorization URL
       window.location.href = data.url;
-      
+
       // This code will never be reached due to the redirect
       return { data };
     } catch (error: any) {
       console.error('Failed to initiate Google OAuth:', error);
       return {
         error: {
-          message: error.message || 'Failed to initiate Google OAuth'
-        }
+          message: error.message || 'Failed to initiate Google OAuth',
+        },
       };
     }
   },
@@ -52,7 +66,7 @@ export const oauthService = {
   handleCallback: async (code: string): Promise<OAuthResponse> => {
     try {
       const REDIRECT_URI = window.location.origin + '/auth/callback';
-      
+
       const response = await fetch(API_ENDPOINTS.AUTH.OAUTH.CALLBACK, {
         method: 'POST',
         headers: {
@@ -64,25 +78,40 @@ export const oauthService = {
         }),
       });
 
-      const data = await response.json();
-      console.log('Callback response:', { data, status: response.status });
+      // Try to parse JSON, but fall back to text for debugging non-JSON responses
+      let data: any = null;
+      let rawText: string | null = null;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        try {
+          rawText = await response.text();
+        } catch (textErr) {
+          rawText = null;
+        }
+      }
+
+      console.log('Callback response:', { data, rawText, status: response.status, statusText: response.statusText });
 
       if (!response.ok) {
-        console.error('Callback failed:', { status: response.status, data });
-        throw new Error(data.message || 'OAuth callback failed');
+        // Surface server message or raw text to help debugging
+        const serverMessage = (data && data.message) || rawText || response.statusText || `HTTP ${response.status}`;
+        console.error('Callback failed:', { status: response.status, serverMessage, data, rawText });
+        throw new Error(serverMessage || 'OAuth callback failed');
       }
 
       // Validate the token
-      if (!data.token) {
-        console.error('No token in response:', data);
+      const token = data?.token;
+      if (!token) {
+        console.error('No token in response:', data, rawText);
         throw new Error('No token received from server');
       }
 
       console.log('Storing tokens...');
-      
+
       // Store tokens for both auth systems
-      localStorage.setItem('authToken', data.token);
-      localStorage.setItem('railway_token', data.token);
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('railway_token', token);
       localStorage.setItem('authTokenTimestamp', String(Date.now()));
 
       return { data };
@@ -90,12 +119,12 @@ export const oauthService = {
       // Clear any existing auth data on error
       localStorage.removeItem('authToken');
       localStorage.removeItem('authTokenTimestamp');
-      
+
       console.error('OAuth callback error:', error);
       return {
         error: {
-          message: error.message || 'Failed to complete authentication'
-        }
+          message: error.message || 'Failed to complete authentication',
+        },
       };
     }
   }
