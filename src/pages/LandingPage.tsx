@@ -6,12 +6,10 @@ import Testimonials from "../components/Testimonials";
 import FAQ from "../components/FAQ";
 import FinalCTA from "../components/FinalCTA";
 import Footer from "../components/Footer";
-import Header from "../components/Header";
 
 export default function LandingPage() {
   return (
     <main className="bg-white">
-      <Header />
       {/* Hero Section with Dark Gradient Background */}
       <Hero />
 
