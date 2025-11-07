@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../lib";
-import { railwayApi } from "../lib/railwayApi";
 import {
   Gift,
   Trash,
@@ -11,7 +10,6 @@ import {
   Pencil,
   Check,
   X,
-  ArrowLeft,
   Briefcase,
   Flag,
   AlertCircle,
@@ -21,7 +19,6 @@ import {
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 import PersonaForm, { type PersonaFormValues } from "../components/PersonaForm";
-import { AvatarDisplay, AvatarUpload } from "../components/AvatarComponent";
 
 // Local Persona type to map common fields
 type Persona = {
@@ -106,6 +103,12 @@ const normalizePersonaToForm = (p: Persona | null): PersonaFormValues => ({
     (p as any)?.behavioral_insights ||
     (p as any)?.insights ||
     "",
+  // Ensure budget fields from backend are passed to the form
+  budgetMin: (p as any)?.budgetMin ?? (p as any)?.budget_min ?? undefined,
+  budgetMax: (p as any)?.budgetMax ?? (p as any)?.budget_max ?? undefined,
+  // Map goals/challenges from possible snake/camel variants
+  goals: (p as any)?.goals ?? (p as any)?.goal ?? undefined,
+  challenges: (p as any)?.challenges ?? (p as any)?.challenge ?? undefined,
 });
 
 // Helper to compute age from ISO birth date (used in UI)
@@ -130,6 +133,10 @@ const PersonaDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [editing, setEditing] = useState(false);
+  // Preview values provided by the form via onValuesChange
+  const [previewValues, setPreviewValues] = useState<PersonaFormValues | null>(
+    null
+  );
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggesting, setSuggesting] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -189,6 +196,13 @@ const PersonaDetailPage: React.FC = () => {
     fetchPersona();
     loadEvents();
   }, [fetchPersona, loadEvents]);
+
+  // When opening the editor, initialize previewValues with current formInitial
+  useEffect(() => {
+    if (editing) {
+      setPreviewValues(normalizePersonaToForm(persona));
+    }
+  }, [editing, persona]);
 
   const handleUpdate = async (values: PersonaFormValues) => {
     if (!id) return;
@@ -390,6 +404,41 @@ const PersonaDetailPage: React.FC = () => {
     }
   };
 
+  const openPreview = (values?: PersonaFormValues | null) => {
+    const v = values ?? previewValues ?? normalizePersonaToForm(persona);
+    const html = `
+      <div style="text-align:left;">
+        <p><strong>İsim:</strong> ${v?.name || "—"}</p>
+        <p><strong>Doğum Tarihi:</strong> ${v?.birthDate || "—"}</p>
+        <p><strong>İlgi Alanları:</strong> ${
+          (v?.interests || []).join(", ") || "—"
+        }</p>
+        <p><strong>Rol:</strong> ${v?.role || "—"}</p>
+        <p><strong>Hedefler:</strong> ${v?.goals || "—"}</p>
+        <p><strong>Zorluklar:</strong> ${v?.challenges || "—"}</p>
+        <p><strong>Bütçe:</strong> ${v?.budgetMin ?? "—"} — ${
+      v?.budgetMax ?? "—"
+    }</p>
+        <p><strong>Davranışsal İçgörüler:</strong><br/>${(
+          v?.behavioralInsights || "—"
+        ).replace(/\n/g, "<br/>")}</p>
+        <p><strong>Açıklama / Notlar:</strong><br/>${(v?.notes || "—").replace(
+          /\n/g,
+          "<br/>"
+        )}</p>
+      </div>
+    `;
+
+    Swal.fire({
+      title: "Önizleme",
+      html,
+      width: 700,
+      showCloseButton: true,
+      focusConfirm: false,
+      confirmButtonText: "Kapat",
+    });
+  };
+
   if (loading) {
     return (
       <div
@@ -454,22 +503,6 @@ const PersonaDetailPage: React.FC = () => {
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
         {/* Top actions */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="inline-flex items-center gap-2 text-white/80">
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: "var(--gm-accent)" }}
-            />
-            <span className="font-medium">giftMind</span>
-          </div>
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium text-white hover:opacity-95"
-            style={{ backgroundColor: "var(--gm-primary)" }}
-          >
-            <ArrowLeft className="h-4 w-4" /> Back to Dashboard
-          </Link>
-        </div>
 
         {/* Header: name + subtitle */}
         <div className="mb-6">
@@ -480,9 +513,7 @@ const PersonaDetailPage: React.FC = () => {
             {persona.name}
           </h1>
           <p className="mt-1" style={{ color: "rgba(255,255,255,0.7)" }}>
-            {(persona as any).title ||
-              (persona as any).headline ||
-              "Creative Strategist"}
+            {(persona as any).title || (persona as any).behavioral_insights}
           </p>
         </div>
 
@@ -499,17 +530,6 @@ const PersonaDetailPage: React.FC = () => {
             {/* Left: avatar + facts */}
             <div className="md:col-span-2 flex items-center gap-5 md:gap-6">
               {/* Avatar */}
-              <div
-                className="h-20 w-20 md:h-24 md:w-24 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{
-                  background:
-                    "linear-gradient(135deg, rgba(91,95,241,0.3), rgba(0,201,167,0.25))",
-                  color: "#fff",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                }}
-              >
-                <UserIcon className="h-9 w-9 opacity-90" />
-              </div>
 
               {/* Facts */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
@@ -524,7 +544,7 @@ const PersonaDetailPage: React.FC = () => {
                     <Gift className="h-3.5 w-3.5" />
                   </span>
                   <span className="text-sm">
-                    <span className="opacity-80">Age:</span>{" "}
+                    <span className="opacity-80">Yaş:</span>{" "}
                     <span className="text-white/90 font-medium">
                       {ageText ?? "—"}
                     </span>
@@ -541,7 +561,7 @@ const PersonaDetailPage: React.FC = () => {
                     <Briefcase className="h-3.5 w-3.5" />
                   </span>
                   <span className="text-sm">
-                    <span className="opacity-80">Role:</span>{" "}
+                    <span className="opacity-80">Meslek:</span>{" "}
                     <span className="text-white/90 font-medium">
                       {roleText}
                     </span>
@@ -551,14 +571,16 @@ const PersonaDetailPage: React.FC = () => {
                   className="flex items-center gap-2"
                   style={{ color: "#C9CBF0" }}
                 >
-                  <span
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-full"
-                    style={{ backgroundColor: "#2A2B44" }}
-                  >
-                    <Flag className="h-3.5 w-3.5" />
-                  </span>
+                  <div>
+                    <span
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-full"
+                      style={{ backgroundColor: "#2A2B44" }}
+                    >
+                      <Flag className="h-3.5 w-3.5" />
+                    </span>
+                  </div>
                   <span className="text-sm">
-                    <span className="opacity-80">Goal:</span>{" "}
+                    <span className="opacity-80">Hedef:</span>{" "}
                     <span className="text-white/90 font-medium">
                       {goalText}
                     </span>
@@ -575,9 +597,9 @@ const PersonaDetailPage: React.FC = () => {
                     <AlertCircle className="h-3.5 w-3.5" />
                   </span>
                   <span className="text-sm">
-                    <span className="opacity-80">Challenge:</span>{" "}
+                    <span className="opacity-80">Cinsiyet:</span>{" "}
                     <span className="text-white/90 font-medium">
-                      {challengeText}
+                      supabase gender field
                     </span>
                   </span>
                 </div>
@@ -602,11 +624,11 @@ const PersonaDetailPage: React.FC = () => {
           <div className="flex items-center gap-6 border-b border-white/10">
             {(
               [
-                { key: "overview", label: "Overview" },
-                { key: "insights", label: "Behavioral Insights" },
-                { key: "preferences", label: "Preferences" },
-                { key: "notes", label: "Notes/AI Suggestions" },
-                { key: "events", label: "Events" },
+                { key: "overview", label: "Özet" },
+                { key: "insights", label: "Davranışsal İçgörüler" },
+                { key: "preferences", label: "Tercihler" },
+                { key: "notes", label: "Notlar/AI Önerileri" },
+                { key: "events", label: "Etkinlikler" },
               ] as const
             ).map((t) => (
               <button
@@ -640,7 +662,7 @@ const PersonaDetailPage: React.FC = () => {
                 border: "1px solid rgba(255,255,255,0.06)",
               }}
             >
-              <div className="flex items-center gap-4">
+              {/* <div className="flex items-center gap-4">
                 <AvatarDisplay
                   avatarUrl={persona?.avatar_url}
                   size={80}
@@ -653,7 +675,7 @@ const PersonaDetailPage: React.FC = () => {
                     setPersona((p) => (p ? { ...p, avatar_url: newUrl } : p))
                   }
                 />
-              </div>
+              </div> */}
             </div>
           )}
 
@@ -969,20 +991,49 @@ const PersonaDetailPage: React.FC = () => {
           )}
         </div>
 
-        {/* Edit mode overlay card */}
+        {/* Edit mode: render form inside a modal-like overlay when editing is true */}
         {editing && (
-          <div
-            className="rounded-2xl p-4 md:p-5 mb-8"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            <PersonaForm
-              initialData={formInitial}
-              submitLabel="Save Changes"
-              onSubmit={handleUpdate}
+          <div className="fixed inset-0 z-40 flex items-center justify-center">
+            <div
+              className="absolute inset-0"
+              style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+              onClick={() => setEditing(false)}
             />
+            <div
+              className="relative z-50 w-full max-w-3xl mx-4 rounded-2xl p-4 md:p-6"
+              style={{
+                backgroundColor: "#0B0B1A",
+                border: "1px solid rgba(255,255,255,0.06)",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+              }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div
+                  className="text-lg font-medium"
+                  style={{ color: "#FFFFFF" }}
+                >
+                  Persona Düzenle
+                </div>
+                <div className="flex items-right gap-2">
+                  <button
+                    onClick={() => setEditing(false)}
+                    className="inline-flex items-right gap-2 rounded-full px-3 py-1.5 text-sm"
+                    style={{
+                      backgroundColor: "rgba(255,255,255,0.06)",
+                      color: "#E5E7EB",
+                    }}
+                  >
+                    Kapat
+                  </button>
+                </div>
+              </div>
+              <PersonaForm
+                initialData={formInitial}
+                submitLabel="Kaydet"
+                onSubmit={handleUpdate}
+                onValuesChange={(v) => setPreviewValues(v)}
+              />
+            </div>
           </div>
         )}
 

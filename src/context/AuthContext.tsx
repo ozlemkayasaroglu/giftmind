@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
 import { oauthService } from '../lib/oauthService';
+import { railwayApi } from '../lib/railwayApi';
 
 interface User {
   id: string;
@@ -13,6 +14,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   loginWithGoogle: () => Promise<void>;
+  login: (email: string, password: string) => Promise<{ data?: any; error?: any }>;
   logout: () => void;
 }
 
@@ -55,6 +57,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Email/password login wrapper
+  const login = async (email: string, password: string) => {
+    setLoading(true);
+    try {
+      const res = await railwayApi.login(email, password);
+      if ((res as any).success) {
+        const u = (res as any).user ?? (res as any).data?.user ?? null;
+        setUser(u);
+        setLoading(false);
+        return { data: res, error: null };
+      }
+      setLoading(false);
+      return { data: null, error: { message: (res as any).error || (res as any).message || 'Login failed' } };
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setLoading(false);
+      return { data: null, error: { message: err?.message || 'Login failed' } };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('authToken');
     setUser(null);
@@ -64,6 +86,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     loading,
     loginWithGoogle,
+    login,
     logout
   };
 

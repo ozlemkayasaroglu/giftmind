@@ -18,14 +18,15 @@ const LoginPage: React.FC = () => {
     setError("");
 
     try {
-      const { error } = await login(email, password);
-      if (error) {
-        setError(error.message || "Login failed");
+      const result = await login(email, password);
+      if (result?.error) {
+        setError(result.error.message || 'Login failed');
       } else {
-        navigate("/dashboard");
+        navigate('/dashboard');
       }
     } catch (err) {
-      setError("An unexpected error occurred");
+      console.error('Login submission error:', err);
+      setError((err as any)?.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }

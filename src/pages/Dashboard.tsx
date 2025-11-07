@@ -422,7 +422,9 @@ const AddPersonaModal: React.FC<{
                     <input
                       type="date"
                       value={formData.birthDate}
-                      onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, birthDate: e.target.value })
+                      }
                       className={inputClass}
                       style={inputStyle}
                     />
@@ -1062,7 +1064,7 @@ const Dashboard: React.FC = () => {
           <div
             className="rounded-2xl p-5 md:p-6 flex items-center justify-between"
             style={{
-              background: "linear-gradient(135deg, #5B5FF1, #00C9A7)",
+              background: "linear-gradient(135deg, #5b60f160, #00c9a743)",
               color: "white",
               boxShadow: "0 12px 40px rgba(0,201,167,0.25)",
             }}
@@ -1096,7 +1098,7 @@ const Dashboard: React.FC = () => {
           <div
             className="rounded-2xl p-5 md:p-6 flex items-center justify-between"
             style={{
-              background: "linear-gradient(135deg, #5B5FF1, #00C9A7)",
+              background: "linear-gradient(135deg, #5b60f160, #00c9a743)",
               color: "white",
               boxShadow: "0 12px 40px rgba(0,201,167,0.25)",
             }}
@@ -1184,7 +1186,9 @@ const Dashboard: React.FC = () => {
                     className="text-sm mt-1 line-clamp-2"
                     style={{ color: "rgba(255,255,255,0.7)" }}
                   >
-                    {persona.description || "—"}
+                    {(persona as any).behavioralInsights ??
+                      (persona as any).behavioral_insights ??
+                      "—"}
                   </p>
                 </div>
                 <div className="mt-4">
