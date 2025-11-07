@@ -1,209 +1,940 @@
-// Dashboard.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Plus, X } from "lucide-react";
+import { useAuth } from "../context";
 import { api } from "../lib";
+import { railwayApi } from "../lib/railwayApi";
 import type { Persona } from "../lib/types";
-import type { PersonaFormValues } from "../components/PersonaForm";
-import PersonaForm from "../components/PersonaForm";
+import { Plus, X, Upload, Tag as TagIcon, Sparkles, User } from "lucide-react";
 
-type AddPersonaModalProps = {
+// Add Persona Modal Component
+// Add Persona Modal Component
+const AddPersonaModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   onPersonaAdded: () => void;
-};
+}> = ({ isOpen, onClose, onPersonaAdded }) => {
+  const traitOptions = [
+    "Creative",
+    "Analytical",
+    "Spontaneous",
+    "Empathetic",
+    "Pragmatic",
+    "Optimistic",
+  ];
 
-/**
- * AddPersonaModal
- * - İçeride PersonaForm kullanır
- * - Dirty-check (kaydedilmemiş değişiklik varsa kapatma öncesi uyarı)
- * - Escape ile kapatma, body scroll lock
- */
-const AddPersonaModal: React.FC<AddPersonaModalProps> = ({
-  isOpen,
-  onClose,
-  onPersonaAdded,
-}) => {
+  const [formData, setFormData] = useState({
+    name: "",
+    role: "",
+    birthDate: "",
+    goals: "",
+    challenges: "",
+    description: "",
+    interestsInput: "",
+    budgetMin: "",
+    budgetMax: "",
+    behavioralInsights: "",
+    notes: "",
+  });
+
+  const [selectedTraits, setSelectedTraits] = useState<string[]>([]);
+  const [customTrait, setCustomTrait] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>("");
+
+  type NewEvent = { title: string; details?: string; occurred_at?: string };
+  const [eventsDraft, setEventsDraft] = useState<NewEvent[]>([]);
+  const [evTitle, setEvTitle] = useState("");
+  const [evDetails, setEvDetails] = useState("");
+  const [evDate, setEvDate] = useState("");
+
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [hasUnsaved, setHasUnsaved] = useState(false);
+  const [error, setError] = useState("");
 
-  // body scroll lock
-  useEffect(() => {
-    if (isOpen) document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isOpen]);
+  type StepKey = "profile" | "traits" | "preferences" | "notes" | "events";
+  const [activeStep, setActiveStep] = useState<StepKey>("profile");
 
-  // escape to close (with dirty-check)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) attemptClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, hasUnsaved]);
+  const steps = useMemo(
+    () => [
+      { key: "profile" as StepKey, label: "Profil", icon: "👤" },
+      { key: "traits" as StepKey, label: "Özellikler", icon: "🎭" },
+      { key: "preferences" as StepKey, label: "Tercihler", icon: "🎯" },
+      { key: "notes" as StepKey, label: "Notlar & Yapay Zeka", icon: "📝" },
+      { key: "events" as StepKey, label: "Etkinlikler", icon: "📅" },
+    ],
+    []
+  );
 
-  const attemptClose = () => {
-    if (hasUnsaved) {
-      const ok = window.confirm(
-        "Kaydedilmemiş değişiklikler var. Pencereyi kapatmak istediğinize emin misiniz?"
-      );
-      if (!ok) return;
-    }
-    setError(null);
-    setHasUnsaved(false);
-    onClose();
+  const currentIndex = steps.findIndex((s) => s.key === activeStep);
+
+  // Renk paleti
+  const colors = {
+    primary: "#7B61FF",
+    secondary: "#00C9A7",
+    background: "#12132A",
+    surface: "#17182B",
+    surfaceLight: "#1E1F3A",
+    border: "#2A2B3F",
+    text: {
+      primary: "#FFFFFF",
+      secondary: "#C9CBF0",
+      muted: "rgba(255,255,255,0.6)",
+    },
+    gradient: {
+      primary: "linear-gradient(135deg, #7B61FF 0%, #5B5FF1 100%)",
+      secondary: "linear-gradient(135deg, #00C9A7 0%, #009E7F 100%)",
+      card: "linear-gradient(135deg, rgba(91,95,241,0.15), rgba(0,201,167,0.1))",
+    },
   };
 
-  const handleSubmit = async (values: PersonaFormValues) => {
-    setLoading(true);
-    setError(null);
+  const nextStep = () => {
+    setError("");
+    if (!formData.name.trim()) {
+      setActiveStep("profile");
+      setError("İsim gerekli");
+      return;
+    }
+    if (currentIndex < steps.length - 1) {
+      setActiveStep(steps[currentIndex + 1].key);
+    }
+  };
 
-    // map fields to backend payload (backend alan adlarına göre düzenle)
-    const payload: any = {
-      name: values.name,
-      role: values.role,
-      birth_date: values.birth_date,
-      interests: values.interests?.length ? values.interests : undefined,
-      description: values.description,
-      goals: values.goals,
-      challenges: values.challenges,
-      behavioral_insights: values.behavioral_insights,
-      budget_min: values.budget_min,
-      budget_max: values.budget_max,
-      personality_traits: values.personality_traits,
-      is_active: values.is_active ?? true,
-      notes: values.notes,
-    };
+  const prevStep = () => {
+    setError("");
+    if (currentIndex > 0) setActiveStep(steps[currentIndex - 1].key);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      role: "",
+      birthDate: "",
+      goals: "",
+      challenges: "",
+      description: "",
+      interestsInput: "",
+      budgetMin: "",
+      budgetMax: "",
+      behavioralInsights: "",
+      notes: "",
+    });
+    setSelectedTraits([]);
+    setCustomTrait("");
+    setAvatarFile(null);
+    setAvatarPreview("");
+    setEventsDraft([]);
+    setEvTitle("");
+    setEvDetails("");
+    setEvDate("");
+    setActiveStep("profile");
+  };
+
+  const addCustomTrait = () => {
+    const t = customTrait.trim();
+    if (!t) return;
+    if (!selectedTraits.includes(t)) {
+      setSelectedTraits((s) => [...s, t]);
+    }
+    setCustomTrait("");
+  };
+
+  const toggleTrait = (t: string) => {
+    setSelectedTraits((s) =>
+      s.includes(t) ? s.filter((x) => x !== t) : [...s, t]
+    );
+  };
+
+  const addEventDraft = () => {
+    if (!evTitle.trim()) return;
+    setEventsDraft((d) => [
+      ...d,
+      {
+        title: evTitle.trim(),
+        details: evDetails.trim() || undefined,
+        occurred_at: evDate || undefined,
+      },
+    ]);
+    setEvTitle("");
+    setEvDetails("");
+    setEvDate("");
+  };
+
+  const removeEventDraft = (idx: number) => {
+    setEventsDraft((d) => d.filter((_, i) => i !== idx));
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setAvatarPreview(previewUrl);
+      // Log selected file and preview url
+      console.log("Avatar selected:", { file, previewUrl });
+    }
+  };
+
+  const toArray = (value: string) =>
+    value
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
 
     try {
-      const { error: apiError } = await api.personas.create(payload);
-      if (apiError) {
-        setError(apiError.message || "Persona oluşturulamadı");
+      if (!formData.name.trim()) {
+        setLoading(false);
+        setActiveStep("profile");
+        setError("İsim gerekli");
         return;
       }
 
-      setHasUnsaved(false);
+      const personaData: any = {
+        name: formData.name,
+        role: formData.role || undefined,
+        description: formData.description || formData.notes || undefined,
+        goals: formData.goals || undefined,
+        challenges: formData.challenges || undefined,
+        interests: toArray(formData.interestsInput),
+        personalityTraits: selectedTraits,
+        interestsRaw: (formData.interestsInput || "").trim() || undefined,
+        birthDate: formData.birthDate || undefined,
+        budgetMin: Number.isFinite(Number(formData.budgetMin))
+          ? Number(formData.budgetMin)
+          : undefined,
+        budgetMax: Number.isFinite(Number(formData.budgetMax))
+          ? Number(formData.budgetMax)
+          : undefined,
+        behavioralInsights: formData.behavioralInsights || undefined,
+        notesText: formData.notes || undefined,
+      };
+
+      console.log(formData, personaData);
+
+      const { data: created, error } = await api.personas.create(personaData);
+      if (error) {
+        setError(error.message || "Persona oluşturulamadı");
+        setLoading(false);
+        return;
+      }
+
+      if ((created as any)?.id && eventsDraft.length) {
+        const pid = (created as any).id as string;
+        for (const ev of eventsDraft) {
+          await api.events.create(pid, ev);
+        }
+      }
+
+      // If an avatar was selected, upload it now and log the result
+      if ((created as any)?.id && avatarFile) {
+        try {
+          const pid = (created as any).id as string;
+          const res = await railwayApi.uploadPersonaAvatar(pid, avatarFile);
+          console.log("Avatar upload result:", res);
+        } catch (upErr) {
+          console.warn("Avatar upload failed:", upErr);
+        }
+      }
+
       onPersonaAdded();
       onClose();
+      resetForm();
     } catch (err: any) {
-      console.error(err);
-      setError(err?.message || "Persona oluşturulamadı");
+      setError("Persona oluşturulamadı");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFormChange = () => {
-    setHasUnsaved(true);
+  if (!isOpen) return null;
+
+  // Stil yardımcıları
+  const inputClass =
+    "w-full rounded-xl border px-4 py-3 text-sm focus:outline-none focus:ring-2 transition-all duration-200";
+  const inputStyle: React.CSSProperties = {
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    color: colors.text.primary,
   };
 
-  if (!isOpen) return null;
+  const buttonBase =
+    "px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-start md:items-center justify-center overflow-y-auto p-4"
       style={{
         background:
-          "radial-gradient(1200px circle at 50% -20%, rgba(35,201,255,0.12), transparent 40%), rgba(0,0,0,0.75)",
-        backdropFilter: "blur(6px)",
+          "radial-gradient(1200px circle at 50% -20%, rgba(35,201,255,0.14), transparent 40%), rgba(0,0,0,0.75)",
+        backdropFilter: "blur(8px)",
       }}
-      onClick={attemptClose}
     >
-      {/* backdrop clickable area handled by parent div onClick */}
       <div
-        className="relative z-10 w-full max-w-3xl mx-auto rounded-2xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-4xl mx-auto my-8 rounded-3xl overflow-hidden"
         style={{
-          background: "#0E0F1A",
-          border: "1px solid rgba(255, 255, 255, 0.04)",
+          backgroundColor: colors.background,
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 40px 80px rgba(0,0,0,0.65)",
         }}
       >
-        {/* header */}
+        {/* Header */}
         <div
-          className="flex items-center justify-between px-5 py-4 border-b"
-          style={{ borderColor: "rgba(255,255,255,0.03)" }}
+          className="p-6 border-b"
+          style={{
+            borderColor: "rgba(255,255,255,0.06)",
+            background: colors.gradient.primary,
+          }}
         >
-          <div>
-            <h3 className="text-lg font-semibold text-white">
-              Yeni Persona Oluştur
-            </h3>
-            <p className="text-sm text-white/60">
-              Kişisel bilgileri doldurun — daha iyi hediye önerileri için
-              ayrıntı ekleyin.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {hasUnsaved && (
-              <span className="text-xs text-yellow-300">
-                Kaydedilmemiş değişiklik
-              </span>
-            )}
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="text-2xl md:text-3xl font-bold text-white">
+                Yeni Persona Oluştur
+              </h3>
+              <p className="mt-2 text-sm opacity-90 text-white">
+                Yapay zeka personanızı ayrıntılı özellikler ve tercihlerle
+                tanımlayın
+              </p>
+            </div>
             <button
-              aria-label="Kapat"
-              onClick={attemptClose}
-              className="p-2 rounded-md hover:bg-white/5"
+              onClick={onClose}
+              className="rounded-full p-2 hover:opacity-80 transition-opacity"
+              style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+              aria-label="Close"
             >
-              <X className="w-5 h-5 text-white/80" />
+              <X className="h-5 w-5 text-white" />
             </button>
           </div>
         </div>
 
-        {/* body */}
-        <div className="p-5 max-h-[70vh] overflow-y-auto">
+        {/* Progress Steps */}
+        <div
+          className="px-6 py-4 border-b"
+          style={{ borderColor: "rgba(255,255,255,0.06)" }}
+        >
+          <div className="flex items-center justify-between">
+            {steps.map((step, index) => (
+              <div key={step.key} className="flex items-center flex-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(step.key)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                    activeStep === step.key
+                      ? "text-white scale-105"
+                      : index < currentIndex
+                      ? "text-white opacity-80"
+                      : "text-white opacity-50"
+                  }`}
+                  style={{
+                    backgroundColor:
+                      activeStep === step.key ? colors.primary : "transparent",
+                  }}
+                >
+                  <span className="text-sm">{step.icon}</span>
+                  <span className="text-xs font-medium hidden sm:block">
+                    {step.label}
+                  </span>
+                </button>
+                {index < steps.length - 1 && (
+                  <div
+                    className="flex-1 h-0.5 mx-2"
+                    style={{
+                      backgroundColor:
+                        index < currentIndex
+                          ? colors.primary
+                          : "rgba(255,255,255,0.1)",
+                    }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-6 max-h-[70vh] overflow-y-auto">
           {error && (
             <div
-              className="mb-4 rounded-md p-3 text-sm border"
+              className="mb-6 rounded-xl p-4 text-sm border"
               style={{
-                backgroundColor: "rgba(219,68,55,0.08)",
+                backgroundColor: "rgba(219, 68, 55, 0.1)",
                 color: "#FF6B6B",
-                borderColor: "rgba(255,107,107,0.2)",
+                borderColor: "rgba(255, 107, 107, 0.3)",
               }}
             >
               {error}
             </div>
           )}
 
-          {/* PersonaForm - onSubmit handles saving */}
-          <PersonaForm
-            onSubmit={handleSubmit}
-            initialData={{}}
-            submitLabel={loading ? "Kaydediliyor…" : "Kaydet"}
-            // @ts-ignore optional onChange prop — eğer PersonaForm tanımında yoksa ekle (önceki öneride gösterildi)
-            onChange={handleFormChange}
-          />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Step 1: Profile */}
+            {activeStep === "profile" && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: colors.text.secondary }}
+                    >
+                      İsim *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      placeholder="İsim girin"
+                      className={inputClass}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: colors.text.secondary }}
+                    >
+                      Rol / Meslek
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.role}
+                      onChange={(e) =>
+                        setFormData({ ...formData, role: e.target.value })
+                      }
+                      placeholder="örn. Kreatif Direktör"
+                      className={inputClass}
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    className="block text-sm font-medium mb-3"
+                    style={{ color: colors.text.secondary }}
+                  >
+                    Doğum Tarihi
+                  </label>
+                  <div>
+                    <input
+                      type="date"
+                      value={formData.birthDate}
+                      onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                      className={inputClass}
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: colors.text.secondary }}
+                    >
+                      Hedefler ve Beklentiler
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={formData.goals}
+                      onChange={(e) =>
+                        setFormData({ ...formData, goals: e.target.value })
+                      }
+                      placeholder="Bu persona ne başarmak istiyor?"
+                      className={inputClass}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: colors.text.secondary }}
+                    >
+                      Zorluklar ve Acı Noktaları
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={formData.challenges}
+                      onChange={(e) =>
+                        setFormData({ ...formData, challenges: e.target.value })
+                      }
+                      placeholder="Karşılaştığı zorluklar neler?"
+                      className={inputClass}
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Traits */}
+            {activeStep === "traits" && (
+              <div className="space-y-6">
+                <div>
+                  <label
+                    className="block text-sm font-medium mb-3"
+                    style={{ color: colors.text.secondary }}
+                  >
+                    Kişilik Özellikleri
+                  </label>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {traitOptions.map((trait) => (
+                      <button
+                        key={trait}
+                        type="button"
+                        onClick={() => toggleTrait(trait)}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                          selectedTraits.includes(trait)
+                            ? "text-white shadow-lg transform scale-105"
+                            : "text-white opacity-80 hover:opacity-100"
+                        }`}
+                        style={{
+                          backgroundColor: selectedTraits.includes(trait)
+                            ? colors.primary
+                            : "rgba(255,255,255,0.1)",
+                          border: selectedTraits.includes(trait)
+                            ? `1px solid ${colors.primary}`
+                            : "1px solid rgba(255,255,255,0.2)",
+                        }}
+                      >
+                        {trait}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      value={customTrait}
+                      onChange={(e) => setCustomTrait(e.target.value)}
+                      placeholder="Özel özellik ekle..."
+                      className="flex-1 rounded-xl border px-4 py-2 text-sm"
+                      style={inputStyle}
+                    />
+                    <button
+                      type="button"
+                      onClick={addCustomTrait}
+                      className={buttonBase}
+                      style={{
+                        backgroundColor: colors.secondary,
+                        color: "white",
+                      }}
+                    >
+                      Ekle
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    className="block text-sm font-medium mb-3"
+                    style={{ color: colors.text.secondary }}
+                  >
+                    Avatar Görseli
+                  </label>
+                  <div className="flex items-center gap-6">
+                    <div
+                      className="w-20 h-20 rounded-2xl border-2 border-dashed flex items-center justify-center overflow-hidden"
+                      style={{
+                        borderColor: colors.border,
+                        background: colors.gradient.card,
+                      }}
+                    >
+                      {avatarPreview ? (
+                        <img
+                          src={avatarPreview}
+                          alt="Avatar preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User
+                          className="h-8 w-8"
+                          style={{ color: colors.text.muted }}
+                        />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <label className="block">
+                        <div
+                          className="border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all hover:border-purple-400"
+                          style={{
+                            borderColor: colors.border,
+                            backgroundColor: colors.surface,
+                          }}
+                        >
+                          <Upload
+                            className="h-6 w-6 mx-auto mb-2"
+                            style={{ color: colors.text.muted }}
+                          />
+                          <span
+                            className="text-sm"
+                            style={{ color: colors.text.secondary }}
+                          >
+                            Yüklemek için tıklayın veya sürükleyip bırakın
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleAvatarChange}
+                            className="hidden"
+                          />
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Preferences */}
+            {activeStep === "preferences" && (
+              <div className="space-y-6">
+                <div>
+                  <label
+                    className="block text-sm font-medium mb-2"
+                    style={{ color: colors.text.secondary }}
+                  >
+                    İlgi Alanları ve Hobiler
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <TagIcon
+                      className="h-5 w-5"
+                      style={{ color: colors.text.muted }}
+                    />
+                    <input
+                      type="text"
+                      value={formData.interestsInput}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          interestsInput: e.target.value,
+                        })
+                      }
+                      placeholder="örn. fotoğrafçılık, doğa yürüyüşü, okuma, yemek..."
+                      className={inputClass}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <p
+                    className="text-xs mt-2"
+                    style={{ color: colors.text.muted }}
+                  >
+                    Birden fazla ilgiyi virgülle ayırın
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: colors.text.secondary }}
+                    >
+                      Minimum Bütçe (₺)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={formData.budgetMin}
+                      onChange={(e) =>
+                        setFormData({ ...formData, budgetMin: e.target.value })
+                      }
+                      placeholder="0"
+                      className={inputClass}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className="block text-sm font-medium mb-2"
+                      style={{ color: colors.text.secondary }}
+                    >
+                      Maksimum Bütçe (₺)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={formData.budgetMax}
+                      onChange={(e) =>
+                        setFormData({ ...formData, budgetMax: e.target.value })
+                      }
+                      placeholder="10000"
+                      className={inputClass}
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Notes & AI */}
+            {activeStep === "notes" && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h4
+                    className="text-lg font-semibold"
+                    style={{ color: colors.text.primary }}
+                  >
+                    Ek Detaylar
+                  </h4>
+                  <button
+                    type="button"
+                    disabled
+                    className={`${buttonBase} inline-flex items-center gap-2 opacity-60 cursor-not-allowed`}
+                    style={{ backgroundColor: colors.primary, color: "white" }}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Yapay Zeka ile Oluştur
+                  </button>
+                </div>
+
+                <div>
+                  <label
+                    className="block text-sm font-medium mb-2"
+                    style={{ color: colors.text.secondary }}
+                  >
+                    Genel Açıklama
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
+                    placeholder="Bu persona hakkında kısa bir anlatı yazın..."
+                    className={inputClass}
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    className="block text-sm font-medium mb-2"
+                    style={{ color: colors.text.secondary }}
+                  >
+                    Davranışsal İçgörüler
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={formData.behavioralInsights}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        behavioralInsights: e.target.value,
+                      })
+                    }
+                    placeholder="Alışkanlıklar, karar verme kalıpları, motivasyonlar..."
+                    className={inputClass}
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    className="block text-sm font-medium mb-2"
+                    style={{ color: colors.text.secondary }}
+                  >
+                    İç Notlar
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={formData.notes}
+                    onChange={(e) =>
+                      setFormData({ ...formData, notes: e.target.value })
+                    }
+                    placeholder="Ek notlar veya fikirler..."
+                    className={inputClass}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Step 5: Events */}
+            {activeStep === "events" && (
+              <div className="space-y-6">
+                <div>
+                  <h4
+                    className="text-lg font-semibold mb-2"
+                    style={{ color: colors.text.primary }}
+                  >
+                    Yaşam Olayları Zaman Çizelgesi
+                  </h4>
+                  <p
+                    className="text-sm mb-4"
+                    style={{ color: colors.text.muted }}
+                  >
+                    Bu personayı şekillendiren önemli olayları ekleyin
+                    (opsiyonel)
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    <input
+                      type="text"
+                      value={evTitle}
+                      onChange={(e) => setEvTitle(e.target.value)}
+                      placeholder="Olay başlığı"
+                      className="md:col-span-5 rounded-xl border px-4 py-3 text-sm"
+                      style={inputStyle}
+                    />
+                    <input
+                      type="date"
+                      value={evDate}
+                      onChange={(e) => setEvDate(e.target.value)}
+                      className="md:col-span-3 rounded-xl border px-4 py-3 text-sm"
+                      style={inputStyle}
+                    />
+                    <input
+                      type="text"
+                      value={evDetails}
+                      onChange={(e) => setEvDetails(e.target.value)}
+                      placeholder="Ayrıntılar"
+                      className="md:col-span-3 rounded-xl border px-4 py-3 text-sm"
+                      style={inputStyle}
+                    />
+                    <button
+                      type="button"
+                      onClick={addEventDraft}
+                      className="md:col-span-1 rounded-xl text-sm font-medium text-white px-4 py-3 hover:opacity-95 transition-opacity"
+                      style={{ backgroundColor: colors.primary }}
+                    >
+                      Ekle
+                    </button>
+                  </div>
+
+                  {eventsDraft.length > 0 && (
+                    <div className="space-y-3">
+                      {eventsDraft.map((event, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-4 rounded-xl border"
+                          style={{
+                            borderColor: "rgba(255,255,255,0.1)",
+                            backgroundColor: colors.surfaceLight,
+                          }}
+                        >
+                          <div>
+                            <div
+                              className="font-medium text-sm"
+                              style={{ color: colors.text.primary }}
+                            >
+                              {event.title}
+                            </div>
+                            <div
+                              className="text-xs mt-1"
+                              style={{ color: colors.text.muted }}
+                            >
+                              {event.occurred_at && `${event.occurred_at} • `}
+                              {event.details}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeEventDraft(index)}
+                            className="text-red-400 hover:text-red-300 transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Navigation Buttons */}
+            <div
+              className="flex items-center justify-between pt-6 border-t"
+              style={{ borderColor: "rgba(255,255,255,0.06)" }}
+            >
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  disabled={currentIndex === 0}
+                  className={buttonBase}
+                  style={{
+                    backgroundColor: "rgba(255,255,255,0.08)",
+                    color: colors.text.primary,
+                    opacity: currentIndex === 0 ? 0.5 : 1,
+                  }}
+                >
+                  ← Geri
+                </button>
+
+                {currentIndex < steps.length - 1 && (
+                  <button
+                    type="button"
+                    onClick={nextStep}
+                    className={buttonBase}
+                    style={{ backgroundColor: colors.primary, color: "white" }}
+                  >
+                    Sonraki Adım →
+                  </button>
+                )}
+              </div>
+
+              {currentIndex === steps.length - 1 && (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`${buttonBase} inline-flex items-center gap-2`}
+                  style={{
+                    backgroundColor: colors.secondary,
+                    color: "white",
+                    boxShadow: "0 8px 25px rgba(0,201,167,0.3)",
+                  }}
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Oluşturuluyor...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" />
+                      Persona Oluştur
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </form>
         </div>
       </div>
     </div>
   );
 };
 
-/* ------------------------
-   Dashboard page component
-   ------------------------ */
 const Dashboard: React.FC = () => {
+  const { user, loading: authLoading } = useAuth();
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Fetch personas on component mount
   useEffect(() => {
-    checkApiHealth();
-    fetchPersonas();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (user) {
+      checkApiHealth();
+      fetchPersonas();
+    }
+  }, [user]);
 
   const checkApiHealth = async () => {
     try {
       const { data, error } = await api.health.check();
-      if (error) console.warn("API Health Check failed:", error);
-      else console.log("API health:", data);
+      if (error) {
+        console.warn("API Health Check Failed:", error);
+      } else {
+        console.log("API Health Check:", data);
+      }
     } catch (err) {
-      console.warn("API health error:", err);
+      console.warn("API Health Check Error:", err);
     }
   };
 
@@ -211,58 +942,59 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       const { data, error } = await api.personas.list();
+
       if (error) {
-        setError(error.message || "Personalar getirilemedi");
-        setPersonas([]);
-        return;
+        setError(error.message || "Failed to fetch personas");
+      } else {
+        // Accept both shapes: [Persona] or { success: boolean, personas: [Persona] }
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray((data as any)?.personas)
+          ? (data as any).personas
+          : [];
+        setPersonas(list as Persona[]);
       }
-      // normalize shapes
-      const list = Array.isArray(data)
-        ? data
-        : Array.isArray((data as any)?.personas)
-        ? (data as any).personas
-        : [];
-      setPersonas(list as Persona[]);
-      setError("");
     } catch (err) {
-      console.error(err);
-      setError("Personalar yüklenemedi");
-      setPersonas([]);
+      setError("Failed to load personas");
     } finally {
       setLoading(false);
     }
   };
 
-  // budget range helper
+  // Safely compute budget range text across personas where budget fields may be missing
   const getBudgetRangeText = (items: Persona[]) => {
     const mins = items
-      .map((p) => (p as any).budget_min ?? (p as any).budgetMin)
+      .map((p) => {
+        const v = (p as any).budget_min ?? (p as any).budgetMin;
+        return typeof v === "number" ? v : undefined;
+      })
       .filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
     const maxs = items
-      .map((p) => (p as any).budget_max ?? (p as any).budgetMax)
+      .map((p) => {
+        const v = (p as any).budget_max ?? (p as any).budgetMax;
+        return typeof v === "number" ? v : undefined;
+      })
       .filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
-
-    if (mins.length && maxs.length)
+    if (mins.length && maxs.length) {
       return `₺${Math.min(...mins)} - ₺${Math.max(...maxs)}`;
-    if (mins.length) return `₺${Math.min(...mins)}+`;
-    if (maxs.length) return `Up to ₺${Math.max(...maxs)}`;
+    }
     return "—";
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
         style={{
           background:
-            "radial-gradient(1200px circle at 50% -20%, rgba(35,201,255,0.12), transparent 40%), linear-gradient(180deg, #0C0C1E 0%, #0B0B1A 100%)",
+            "radial-gradient(1200px circle at 50% -20%, rgba(35,201,255,0.14), transparent 40%), linear-gradient(180deg, #0C0C1E 0%, #0B0B1A 100%)",
         }}
       >
         <div className="text-center">
           <div
             className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto"
             style={{ borderColor: "var(--gm-secondary)" }}
-          />
+          ></div>
           <p className="mt-4" style={{ color: "rgba(255,255,255,0.75)" }}>
             Yükleniyor…
           </p>
@@ -271,22 +1003,22 @@ const Dashboard: React.FC = () => {
     );
   }
 
+  const greetName = user?.email ? user.email.split("@")[0] : "misafir";
   const budgetText = getBudgetRangeText(personas);
-  const greetName = "misafir"; // Default greeting name
 
   return (
     <div
       className="min-h-screen"
       style={{
         background:
-          "radial-gradient(1200px circle at 50% -20%, rgba(35,201,255,0.12), transparent 40%), linear-gradient(180deg, #0C0C1E 0%, #0B0B1A 100%)",
+          "radial-gradient(1200px circle at 50% -20%, rgba(35,201,255,0.14), transparent 40%), linear-gradient(180deg, #0C0C1E 0%, #0B0B1A 100%)",
       }}
     >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 ">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         {/* Hero */}
-        <div className="mb-6 md:mb-8 ">
+        <div className="mb-6 md:mb-8">
           <h1
-            className="text-2xl md:text-4xl font-bold pt-10"
+            className="text-3xl md:text-4xl font-bold"
             style={{ color: "#FFFFFF" }}
           >
             Tekrar hoş geldin, {greetName}{" "}
@@ -298,10 +1030,11 @@ const Dashboard: React.FC = () => {
             className="mt-2 text-sm md:text-base"
             style={{ color: "rgba(255,255,255,0.7)" }}
           >
-            Yaratıcı personeların ve içgörülerin seni bekliyor.
+            Yaratıcı personaların ve içgörülerin seni bekliyor.
           </p>
         </div>
 
+        {/* Error banner (if any) */}
         {error && (
           <div
             className="mb-6 rounded-xl px-4 py-3"
@@ -329,7 +1062,7 @@ const Dashboard: React.FC = () => {
           <div
             className="rounded-2xl p-5 md:p-6 flex items-center justify-between"
             style={{
-              background: "linear-gradient(135deg, #3136c6ac, #08756386)",
+              background: "linear-gradient(135deg, #5B5FF1, #00C9A7)",
               color: "white",
               boxShadow: "0 12px 40px rgba(0,201,167,0.25)",
             }}
@@ -363,7 +1096,7 @@ const Dashboard: React.FC = () => {
           <div
             className="rounded-2xl p-5 md:p-6 flex items-center justify-between"
             style={{
-              background: "linear-gradient(135deg, #3136c6ac, #08756386)",
+              background: "linear-gradient(135deg, #5B5FF1, #00C9A7)",
               color: "white",
               boxShadow: "0 12px 40px rgba(0,201,167,0.25)",
             }}

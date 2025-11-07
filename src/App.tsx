@@ -4,7 +4,7 @@ import { ProtectedRoute, Navbar } from './components';
 import { LoginPage, RegisterPage, Dashboard, PersonaDetailPage, ForgotPasswordPage } from './pages';
 import OAuthCallback from './pages/auth/OAuthCallback';
 
-function App() {
+export default function App(): ReactElement {
   return (
     <AuthProvider>
       <Router>
@@ -21,22 +21,23 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/persona/:id" 
-              element={
-                <ProtectedRoute>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/persona/:id"
+            element={
+              <ProtectedRoute>
+                <div className="min-h-screen bg-gradient-to-b from-[#F6F7FB] to-[#EEF0F7]">
+                  <Navbar />
                   <PersonaDetailPage />
-                </ProtectedRoute>
-              } 
-            />
-          </Routes>
-        </div>
-      </Router>
+                </div>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
     </AuthProvider>
   );
 }
-
-export default App

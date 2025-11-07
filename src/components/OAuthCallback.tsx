@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { oauthService } from '../lib/oauthService';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { oauthService } from "../lib/oauthService";
 
 const OAuthCallback = () => {
   const navigate = useNavigate();
@@ -11,10 +11,10 @@ const OAuthCallback = () => {
       try {
         // Get the code from URL search params
         const searchParams = new URLSearchParams(window.location.search);
-        const code = searchParams.get('code');
+        const code = searchParams.get("code");
 
         if (!code) {
-          throw new Error('No authorization code received');
+          throw new Error("No authorization code received");
         }
 
         const response = await oauthService.handleCallback(code);
@@ -24,17 +24,17 @@ const OAuthCallback = () => {
         }
 
         if (!response.data?.token) {
-          throw new Error('No token received from server');
+          throw new Error("No token received from server");
         }
 
         // Token is already stored by oauthService
         // Redirect to home page or dashboard
-        navigate('/', { replace: true });
+        navigate("/", { replace: true });
       } catch (error: any) {
-        console.error('Authentication callback failed:', error);
-        setError(error.message || 'Authentication failed');
+        console.error("Authentication callback failed:", error);
+        setError(error.message || "Authentication failed");
         // Redirect to login page after a short delay if there's an error
-        setTimeout(() => navigate('/login', { replace: true }), 3000);
+        setTimeout(() => navigate("/login", { replace: true }), 3000);
       }
     };
 
