@@ -404,41 +404,6 @@ const PersonaDetailPage: React.FC = () => {
     }
   };
 
-  const openPreview = (values?: PersonaFormValues | null) => {
-    const v = values ?? previewValues ?? normalizePersonaToForm(persona);
-    const html = `
-      <div style="text-align:left;">
-        <p><strong>İsim:</strong> ${v?.name || "—"}</p>
-        <p><strong>Doğum Tarihi:</strong> ${v?.birthDate || "—"}</p>
-        <p><strong>İlgi Alanları:</strong> ${
-          (v?.interests || []).join(", ") || "—"
-        }</p>
-        <p><strong>Rol:</strong> ${v?.role || "—"}</p>
-        <p><strong>Hedefler:</strong> ${v?.goals || "—"}</p>
-        <p><strong>Zorluklar:</strong> ${v?.challenges || "—"}</p>
-        <p><strong>Bütçe:</strong> ${v?.budgetMin ?? "—"} — ${
-      v?.budgetMax ?? "—"
-    }</p>
-        <p><strong>Davranışsal İçgörüler:</strong><br/>${(
-          v?.behavioralInsights || "—"
-        ).replace(/\n/g, "<br/>")}</p>
-        <p><strong>Açıklama / Notlar:</strong><br/>${(v?.notes || "—").replace(
-          /\n/g,
-          "<br/>"
-        )}</p>
-      </div>
-    `;
-
-    Swal.fire({
-      title: "Önizleme",
-      html,
-      width: 700,
-      showCloseButton: true,
-      focusConfirm: false,
-      confirmButtonText: "Kapat",
-    });
-  };
-
   if (loading) {
     return (
       <div
@@ -662,20 +627,55 @@ const PersonaDetailPage: React.FC = () => {
                 border: "1px solid rgba(255,255,255,0.06)",
               }}
             >
-              {/* <div className="flex items-center gap-4">
-                <AvatarDisplay
-                  avatarUrl={persona?.avatar_url}
-                  size={80}
-                  alt={persona?.name}
-                />
-                <AvatarUpload
-                  personaId={id!}
-                  currentAvatarUrl={persona?.avatar_url}
-                  onAvatarChange={(newUrl) =>
-                    setPersona((p) => (p ? { ...p, avatar_url: newUrl } : p))
-                  }
-                />
-              </div> */}
+              {/* Inline preview (uses latest previewValues from form via onValuesChange) */}
+              {(() => {
+                const v = previewValues ?? normalizePersonaToForm(persona);
+                return (
+                  <div className="">
+                    <h3
+                      className="text-lg font-semibold"
+                      style={{ color: "#FFFFFF" }}
+                    >
+                      {(v.name && v.name) || persona.name}
+                    </h3>
+                    <p
+                      className="text-sm mt-1"
+                      style={{ color: "rgba(255,255,255,0.7)" }}
+                    >
+                      {v.role || (persona as any).role || "—"}
+                    </p>
+                    <div className="mt-4 text-sm" style={{ color: "#C9CBF0" }}>
+                      <p>
+                        <strong>İlgi Alanları:</strong>{" "}
+                        {(v.interests || []).join(", ") || "—"}
+                      </p>
+                      <p className="mt-1">
+                        <strong>Hedefler:</strong> {v.goals || "—"}
+                      </p>
+                      <p className="mt-1">
+                        <strong>Zorluklar:</strong> {v.challenges || "—"}
+                      </p>
+                      <p className="mt-1">
+                        <strong>Bütçe:</strong> {v.budgetMin ?? "—"} —{" "}
+                        {v.budgetMax ?? "—"}
+                      </p>
+
+                      <div
+                        className="mt-2 whitespace-pre-wrap"
+                        style={{ color: "#C9CBF0" }}
+                      >
+                        <strong>Notlar:</strong>
+                        <div
+                          style={{ marginTop: 6 }}
+                          dangerouslySetInnerHTML={{
+                            __html: (v.notes || "—").replace(/\n/g, "<br/>"),
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -687,9 +687,17 @@ const PersonaDetailPage: React.FC = () => {
                 border: "1px solid rgba(255,255,255,0.06)",
               }}
             >
-              <p className="text-sm" style={{ color: "#C9CBF0" }}>
-                Insights coming soon.
-              </p>
+              {/* Show behavioral insights from DB (fallback to persona fields) */}
+              <h3 className="text-sm font-medium" style={{ color: "#FFFFFF" }}>
+                Davranışsal İçgörüler
+              </h3>
+              <div className="mt-3 text-sm whitespace-pre-wrap" style={{ color: "#C9CBF0" }}>
+                {formInitial.behavioralInsights && formInitial.behavioralInsights.trim() ? (
+                  <div>{formInitial.behavioralInsights}</div>
+                ) : (
+                  <div style={{ opacity: 0.7 }}>Henüz içgörü yok.</div>
+                )}
+              </div>
             </div>
           )}
 
